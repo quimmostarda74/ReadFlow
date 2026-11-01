@@ -33,7 +33,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "SEU-UTILIZADOR-GITHUB",
+        "owner": "quimmostarda74",
         "repo": "readflow"
       }
     ],
