@@ -1,0 +1,23 @@
+name: Publicar versão
+# Corre quando crias uma etiqueta de versão, por exemplo v1.2.1.
+on:
+  push:
+    tags: ['v*']
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Testes
+        run: npm test
+      - name: Instalar dependências
+        run: npm install
+      - name: Criar o instalador e publicá-lo nas Releases do GitHub
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
