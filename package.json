@@ -1,0 +1,53 @@
+{
+  "name": "readflow",
+  "version": "1.3.0",
+  "description": "ReadFlow: o Strava da leitura, para o computador",
+  "main": "main.js",
+  "author": "ReadFlow",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/smoke.js && node tests/leak.js",
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "pt.readflow.desktop",
+    "productName": "ReadFlow",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "build/icon.png"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SEU-UTILIZADOR-GITHUB",
+        "repo": "readflow"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
+  }
+}
