@@ -5,8 +5,8 @@ const uuid = () => crypto.randomUUID();
 
 function createMock(opts = {}) {
   const key = opts.key || 'test-key';
-  const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map() };
-  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '' };
+  const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map(), covers: new Map() };
+  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false };
   const log = [];
 
   const res = (status, body) => ({ ok: status >= 200 && status < 300, status, text: async () => (body === undefined || body === null ? '' : JSON.stringify(body)) });
@@ -23,6 +23,10 @@ function createMock(opts = {}) {
   const canView = (viewer, target, section) => {
     const f = rel(viewer, target), p = db.profiles.get(target);
     return !!(f && f.status === 'accepted' && p && p.privacy && p.privacy[section] === true);
+  };
+  const canViewAny = (viewer, target, secs) => {
+    const f = rel(viewer, target), p = db.profiles.get(target);
+    return !!(f && f.status === 'accepted' && p && p.privacy && secs.some((x) => p.privacy[x] === true));
   };
   const eq = (v) => (v && v.startsWith('eq.') ? v.slice(3) : null);
   const inList = (v) => (v && v.startsWith('in.(') ? v.slice(4, -1).split(',') : null);
@@ -94,6 +98,7 @@ function createMock(opts = {}) {
       if (fn === 'delete_my_account') {
         db.profiles.delete(me); db.follows = db.follows.filter((f) => f.follower_id !== me && f.followee_id !== me);
         for (const k of [...db.shared.keys()]) if (k.startsWith(me + '|')) db.shared.delete(k);
+        for (const k of [...db.covers.keys()]) if (k.startsWith(me + '|')) db.covers.delete(k);
         for (const [e, usr] of db.users) if (usr.id === me) db.users.delete(e);
         return res(204);
       }
@@ -150,6 +155,28 @@ function createMock(opts = {}) {
         return res(204);
       }
     }
+    if (path === '/rest/v1/covers') {
+      if (flags.noCovers) return err(404, 'PGRST205', "Could not find the table 'public.covers' in the schema cache");
+      const secs = ['reading', 'finished', 'favorites', 'recommendations'];
+      if (method === 'GET') {
+        const uid = eq(q.get('user_id')), cks = inList(q.get('ck'));
+        const rows = [];
+        for (const r of db.covers.values()) if (r.user_id === uid && (!cks || cks.includes(r.ck)) && (uid === me || canViewAny(me, uid, secs))) rows.push({ user_id: r.user_id, ck: r.ck, data: r.data });   // RLS
+        return res(200, rows);
+      }
+      if (method === 'POST') {
+        const list = Array.isArray(body) ? body : [body];
+        if (list.some((r) => r.user_id !== me)) return err(403, '42501', 'new row violates row-level security policy');
+        if (list.some((r) => String(r.data || '').length > 40000 || String(r.ck || '').length > 40)) return err(400, '23514', 'check violation');
+        for (const r of list) db.covers.set(`${r.user_id}|${r.ck}`, { user_id: r.user_id, ck: r.ck, data: r.data });
+        return res(201);
+      }
+      if (method === 'DELETE') {
+        if (eq(q.get('user_id')) !== me) return res(204);
+        for (const ck of inList(q.get('ck')) || []) db.covers.delete(`${me}|${ck}`);
+        return res(204);
+      }
+    }
     return err(404, 'PGRST205', 'not found: ' + path);
   }
 
@@ -161,9 +188,10 @@ function createMock(opts = {}) {
     for (const [section, payload] of Object.entries(sections)) db.shared.set(`${id}|${section}`, { user_id: id, section, payload });
     return id;
   }
+  const seedCover = (uid, ck, data) => db.covers.set(`${uid}|${ck}`, { user_id: uid, ck, data });
   const follow = (follower, followee, status) => { db.follows = db.follows.filter((f) => !(f.follower_id === follower && f.followee_id === followee)); db.follows.push({ follower_id: follower, followee_id: followee, status, created_at: Date.now() }); };
   const uidOf = (handle) => { const m = /^([a-z0-9_]+)#(\d{6})$/.exec(handle); for (const p of db.profiles.values()) if (m && p.handle_name === m[1] && p.handle_number === +m[2]) return p.id; return null; };
 
-  return { fetch: fetchMock, db, flags, log, seed, follow, uidOf, key };
+  return { fetch: fetchMock, db, flags, log, seed, seedCover, follow, uidOf, key };
 }
 module.exports = { createMock };

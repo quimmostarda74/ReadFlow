@@ -4,5 +4,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('readflowApp', {
   getVersion: () => ipcRenderer.invoke('app:version'),
   checkUpdates: () => ipcRenderer.invoke('app:check-updates'),
+  copyText: (text) => ipcRenderer.invoke('app:copy', String(text)),
   onUpdateStatus: (callback) => { ipcRenderer.on('updater:status', (_event, payload) => callback(payload)); }
 });

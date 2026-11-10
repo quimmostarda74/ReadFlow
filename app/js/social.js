@@ -7,7 +7,7 @@
   const PRIVACY_KEYS = [
     ['reading', 'O que estou a ler'], ['finished', 'Livros que já li'], ['favorites', 'Livros favoritos'],
     ['recommendations', 'As minhas recomendações'], ['bio', 'Descrição do perfil'], ['achievements', 'Conquistas'],
-    ['activity', 'Atividade de leitura'], ['stats', 'Estatísticas (tempo e páginas)']
+    ['activity', 'Atividade de leitura'], ['stats', 'Estatísticas (tempo e páginas)'], ['reviews', 'Notas e avaliações dos livros']
   ];
 
   const clean = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_]/g, '').slice(0, 16);
@@ -20,9 +20,14 @@
   /** Item de lista de livros (pseudo-livro, para desenhar a capa). */
   const item = (title, author, note, extra) => ({ id: title + '|' + author, title, author, note: note || '', color: hue(title), coverId: null, ...(extra || {}) });
 
+  /** Totais para o perfil e rankings. Livros lidos sem sessões contam as páginas (o tempo não conta). */
   const statsOf = (st) => {
-    const tot = L.totals(st.sessions), strk = L.computeStreaks(L.activeDays(st.sessions));
-    return { hours: Math.round(tot.seconds / 3600), pages: tot.pages, books: st.books.filter((b) => b.status === 'finished').length, sessions: tot.sessions, streak: strk.current, pace: tot.seconds > 0 ? Math.round(tot.pages / (tot.seconds / 3600)) : 0 };
+    const bonus = L.bonusPages(st.books, st.sessions), tot = L.totals(st.sessions), strk = L.computeStreaks(L.activeDays(st.sessions));
+    const wk = L.startOfWeek(Date.now()), mo = L.startOfMonth(Date.now());
+    const per = (from) => ({ minutes: Math.round(L.totals(st.sessions.filter((s) => s.start >= from)).seconds / 60), pages: L.totals(st.sessions.filter((s) => s.start >= from)).pages + L.sumBonus(bonus, from),
+      books: st.books.filter((b) => b.status === 'finished' && (b.finishedAt || 0) >= from).length });
+    return { hours: Math.round(tot.seconds / 3600), minutes: Math.round(tot.seconds / 60), pages: tot.pages + L.sumBonus(bonus), books: st.books.filter((b) => b.status === 'finished').length,
+      sessions: tot.sessions, streak: strk.current, pace: tot.seconds > 0 ? Math.round(tot.pages / (tot.seconds / 3600)) : 0, week: per(wk), month: per(mo) };
   };
   const activityOf = (st, limit) => [...st.sessions].sort((a, b) => b.start - a.start).slice(0, limit || 1e9).map((s) => {
     const b = st.books.find((x) => x.id === s.bookId);
@@ -32,7 +37,7 @@
   /** O que um seguidor aprovado vê do meu perfil (pré-visualização local, com capas reais). */
   function myPublicProfile(S) {
     const st = S.state, p = st.settings.privacy, books = st.books;
-    const mk = (b) => item(b.title, b.author, b.recNote, { id: b.id, color: b.color, coverId: b.coverId });
+    const mk = (b) => item(b.title, b.author, b.recNote, { id: b.id, color: b.color, coverId: b.coverId, rating: p.reviews ? (b.rating || 0) : 0, review: p.reviews ? (b.notes || '').trim() : '' });
     const out = { name: st.settings.name || 'Leitor', id: st.settings.handleName ? `${st.settings.handleName}#${String(st.settings.handleNumber).padStart(6, '0')}` : '', photoId: st.settings.photoId, sections: {} };
     if (p.bio) out.sections.bio = st.settings.bio || '';
     if (p.reading) out.sections.reading = books.filter((b) => b.status === 'reading').map(mk);
@@ -45,10 +50,16 @@
     return out;
   }
 
-  /** O que é enviado ao servidor: SÓ as secções que a pessoa deixou ativas (minimização de dados). */
-  function publicSections(S) {
+  /** O que é enviado ao servidor: SÓ as secções que a pessoa deixou ativas (minimização de dados).
+      `coverKeys`: ids das capas que têm miniatura disponível (as miniaturas vão numa tabela à parte). */
+  function publicSections(S, coverKeys) {
     const st = S.state, p = st.settings.privacy, books = st.books, out = {};
-    const mk = (b) => ({ title: b.title, author: b.author, note: b.recNote || '', color: b.color });
+    const mk = (b) => {
+      const it = { title: b.title, author: b.author, note: b.recNote || '', color: b.color };
+      if (p.reviews) { if (b.rating > 0) it.rating = b.rating; if (b.notes && b.notes.trim()) it.review = b.notes.trim().slice(0, 400); }
+      if (b.coverId && coverKeys && coverKeys.has(b.coverId)) it.ck = b.coverId;
+      return it;
+    };
     const list = (pred) => books.filter(pred).slice(0, 300).map(mk);
     if (p.bio) out.bio = { text: (st.settings.bio || '').slice(0, 280) };
     if (p.reading) out.reading = list((b) => b.status === 'reading');
@@ -62,9 +73,10 @@
   }
   const ALL_SECTIONS = ['bio', 'reading', 'finished', 'favorites', 'recommendations', 'achievements', 'activity', 'stats'];
 
-  /** Converte as secções recebidas do servidor no formato do ecrã de perfil. */
-  function fromServer(shared) {
-    const sec = {}, mk = (arr) => (arr || []).map((b) => item(b.title, b.author, b.note, { color: b.color || hue(b.title) }));
+  /** Converte as secções recebidas do servidor no formato do ecrã de perfil. `covers`: { ck: dataUrl } já descarregadas. */
+  function fromServer(shared, covers) {
+    const sec = {};
+    const mk = (arr) => (arr || []).map((b) => item(b.title, b.author, b.note, { color: b.color || hue(b.title), rating: b.rating || 0, review: b.review || '', ck: b.ck || '', coverData: (covers && b.ck && covers[b.ck]) || null }));
     if (shared.bio) sec.bio = shared.bio.text || '';
     if (shared.reading) sec.reading = mk(shared.reading);
     if (shared.finished) sec.finished = mk(shared.finished);
@@ -76,6 +88,21 @@
     return sec;
   }
 
-  RF.social = { PRIVACY_KEYS, ALL_SECTIONS, item, clean, parseId, hue, myPublicProfile, publicSections, fromServer };
+  /** Classificação de pessoas por uma métrica e um período ('week' | 'month' | 'total'). Ordem decrescente. */
+  function ranking(people, metric, period) {
+    const pick = (s) => {
+      if (!s) return null;
+      const per = period === 'total' ? s : s[period];
+      if (metric === 'time') return period === 'total' ? (s.minutes !== undefined ? s.minutes : (s.hours || 0) * 60) : (per ? per.minutes : null);
+      if (metric === 'pages') return per ? per.pages : null;
+      if (metric === 'books') return per ? per.books : null;
+      if (period !== 'total') return null;
+      return metric === 'pace' ? s.pace : metric === 'streak' ? s.streak : null;
+    };
+    return people.map((p) => ({ p, v: pick(p.stats) })).filter((x) => x.v !== null && x.v !== undefined && !Number.isNaN(x.v))
+      .sort((a, b) => b.v - a.v || String(a.p.name).localeCompare(String(b.p.name)));
+  }
+
+  RF.social = { PRIVACY_KEYS, ALL_SECTIONS, item, clean, parseId, hue, myPublicProfile, publicSections, fromServer, statsOf, ranking };
   if (typeof module !== 'undefined' && module.exports) module.exports = RF.social;
 })(typeof window !== 'undefined' ? window : globalThis);

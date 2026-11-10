@@ -3613,6 +3613,96 @@
 "Test connection",
 "Проверить подключение",
 "Verbindung testen"
+],
+[
+"Compara a tua leitura com a dos teus amigos.",
+"Compare your reading with your friends'.",
+"Сравни своё чтение с чтением друзей.",
+"Vergleiche dein Lesen mit dem deiner Freunde."
+],
+[
+"Comprado em {store}",
+"Bought at {store}",
+"Куплено: {store}",
+"Gekauft bei {store}"
+],
+[
+"Copiado!",
+"Copied!",
+"Скопировано!",
+"Kopiert!"
+],
+[
+"Entra na tua conta para ver os rankings",
+"Sign in to see the rankings",
+"Войди в аккаунт, чтобы увидеть рейтинги",
+"Melde dich an, um die Ranglisten zu sehen"
+],
+[
+"Ex.: Wook, Bertrand, feira do livro…",
+"E.g. Wook, Bertrand, book fair…",
+"Напр.: Wook, Bertrand, книжная ярмарка…",
+"z. B. Wook, Bertrand, Buchmesse…"
+],
+[
+"Indica o título, o autor e o número de páginas.",
+"Enter the title, the author and the number of pages.",
+"Укажи название, автора и количество страниц.",
+"Gib Titel, Autor und Seitenzahl an."
+],
+[
+"Não foi possível copiar.",
+"Could not copy.",
+"Не удалось скопировать.",
+"Kopieren war nicht möglich."
+],
+[
+"Notas e avaliações dos livros",
+"Book notes and ratings",
+"Заметки и оценки книг",
+"Notizen und Bewertungen zu Büchern"
+],
+[
+"Onde compraste (opcional)",
+"Where you bought it (optional)",
+"Где куплена (необязательно)",
+"Wo gekauft (optional)"
+],
+[
+"Os rankings usam as estatísticas de quem segues e partilha.",
+"Rankings use the statistics of the people you follow who share them.",
+"Рейтинги используют статистику тех, на кого ты подписан и кто ей делится.",
+"Ranglisten nutzen die Statistiken der Personen, denen du folgst und die sie teilen."
+],
+[
+"Rankings",
+"Rankings",
+"Рейтинги",
+"Ranglisten"
+],
+[
+"Ritmo (páginas por hora)",
+"Pace (pages per hour)",
+"Темп (страниц в час)",
+"Tempo (Seiten pro Stunde)"
+],
+[
+"Segue amigos e espera que aceitem para veres como te comparas.",
+"Follow friends and wait for them to accept to see how you compare.",
+"Подпишись на друзей и дождись, пока они примут запрос, чтобы увидеть, как ты выглядишь на их фоне.",
+"Folge Freunden und warte, bis sie annehmen, um zu sehen, wie du abschneidest."
+],
+[
+"Sem estatísticas partilhadas: {names}.",
+"No shared statistics: {names}.",
+"Нет общей статистики: {names}.",
+"Keine geteilten Statistiken: {names}."
+],
+[
+"tu",
+"you",
+"ты",
+"du"
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

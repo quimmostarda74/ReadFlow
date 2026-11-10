@@ -30,7 +30,7 @@ const { createMock } = require('./mock-supabase');
     }
   };
   // 1) sem ligação configurada e 2) com ligação mas sem conta
-  sweep(['home', 'library', 'stats', 'achievements', 'recommended', 'friends', 'profile', 'book:' + b.id]);
+  sweep(['home', 'library', 'stats', 'achievements', 'rankings', 'recommended', 'friends', 'profile', 'book:' + b.id]);
   RF.config.supabaseUrl = 'https://mock.supabase.co'; RF.config.supabaseKey = M.key;
   S.state.settings.lang = 'pt'; RF.app.applyTheme();
   // 3) com conta e amigos
@@ -42,7 +42,7 @@ const { createMock } = require('./mock-supabase');
   M.follow(me, mid, 'accepted');
   const pid = M.seed({ name: 'pedro', number: 771203, display: 'Pedro', sections: {} }); M.follow(pid, me, 'pending');
   await RF.remote.pull(true);
-  sweep(['home', 'friends', 'recommended', 'friend:maria#204819', 'friend:pedro#771203', 'friendlist:maria#204819:finished', 'profile']);
+  sweep(['home', 'friends', 'rankings', 'recommended', 'friend:maria#204819', 'friend:pedro#771203', 'friendlist:maria#204819:finished', 'profile']);
   console.log(bad.length ? 'POSSÍVEL TEXTO EM PORTUGUÊS: ' + JSON.stringify(bad) : 'OK sem texto em português nos outros idiomas');
   process.exit(bad.length ? 1 : 0);
 })().catch((e) => { console.error('FALHOU:', e); process.exit(1); });

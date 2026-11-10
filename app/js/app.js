@@ -7,7 +7,7 @@
   const { h, icon } = UI;
 
   const NAV = [['home', 'Início', 'home'], ['library', 'Estante', 'book'], ['stats', 'Estatísticas', 'chart'], ['achievements', 'Conquistas', 'trophy'],
-    ['recommended', 'Recomendados', 'gift'], ['friends', 'Amigos', 'users'], ['profile', 'Perfil', 'user']];
+    ['rankings', 'Rankings', 'crown'], ['recommended', 'Recomendados', 'gift'], ['friends', 'Amigos', 'users'], ['profile', 'Perfil', 'user']];
   let route = 'home';
   let sideClock = null;
 

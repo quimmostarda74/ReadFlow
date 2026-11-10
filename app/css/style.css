@@ -310,3 +310,21 @@ input[type=date], input[type=time] { width: 100%; padding: 10px 12px; border-rad
 .link-btn:hover { text-decoration: underline; }
 .card.flat.session-card { background: var(--bg); }
 .count { font-weight: 600; }
+
+/* 1.4: cartões de recomendação todos do mesmo tamanho, avaliações, rankings */
+.rec-grid { grid-auto-rows: 1fr; align-items: stretch; }
+.rec-card { height: 100%; justify-content: space-between; }
+.rec-card .strong.serif { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rec-extra { margin-top: 2px; }
+.rec-note { min-height: 3.9em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; color: var(--muted); line-height: 1.3; }
+.stars-static { display: inline-flex; gap: 1px; vertical-align: middle; } .stars-static .on { color: #F5B82E; } .stars-static .off { color: var(--line); }
+.clip3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: stretch; }
+.podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: end; padding-top: 6px; }
+.pod { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.pod .pod-name { max-width: 100%; } .pod-val { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 15px; }
+.pod-base { width: 100%; border-radius: 10px 10px 4px 4px; display: grid; place-items: center; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.pod.p1 .pod-base { height: 66px; background: linear-gradient(#F6D774, #C9A13B); } .pod.p2 .pod-base { height: 48px; background: linear-gradient(#D5DAE3, #9AA3B2); } .pod.p3 .pod-base { height: 36px; background: linear-gradient(#D69A63, #A86B35); }
+.pod[data-empty] .pod-base { opacity: .25; } .pod.me .pod-name { color: var(--accent); }
+.rank-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; } .rank-row.me { background: var(--soft); }
+.rank-n { width: 20px; text-align: center; color: var(--muted); font-weight: 700; }

@@ -5,7 +5,7 @@
   const L = RF.logic, S = RF.store, UI = RF.ui, SOC = RF.social;
   const t = RF.i18n.t;
   const { h, icon } = UI;
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.4.0';
   const MAX_SHOWN = 5;
 
   let libQuery = '', statsRange = 'week', statsMetric = 'time', achFilter = 'all', recTab = 'foryou', recGenre = '', recLang = '', recMore = false, friendsTab = 'feed', homeFeed = 'all';
@@ -24,6 +24,15 @@
   const emptyCard = (ic, title, text, action) => h('div', { class: 'card empty' }, icon(ic, 34), h('h3', null, title), text ? h('p', { class: 'muted' }, text) : null, action || null);
   const lockedCard = (title, ic) => h('div', { class: 'card stack' }, h('h3', { class: 'row gap center' }, icon(ic, 16), title), h('div', { class: 'row gap center muted small' }, icon('lock', 14), t('Esta pessoa não partilha esta secção.')));
   const libName = () => RF.app.libName();
+  const medalTip = (a) => `${L.achTitle(a)} · ${L.tierName(a.tier)}\n${L.achDetail(a)}`;
+  /** Copia texto (a janela do programa não deixa usar a área de transferência do navegador, por isso há 3 caminhos). */
+  async function copyText(text) {
+    let ok = false;
+    try { if (root.readflowApp && root.readflowApp.copyText) ok = !!(await root.readflowApp.copyText(text)); } catch (e) { ok = false; }
+    if (!ok) { try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { ok = false; } }
+    if (!ok) { try { const ta = h('textarea', { value: text, style: { position: 'fixed', opacity: '0', left: '-999px' } }); document.body.append(ta); ta.select(); ok = !!document.execCommand('copy'); ta.remove(); } catch (e) { ok = false; } }
+    UI.toastAchievements([{ type: 'info', name: ok ? t('Copiado!') : t('Não foi possível copiar.') }]);
+  }
 
   function unlockChips(ids) {
     const items = (ids || []).map((id) => L.achById[id]).filter(Boolean);
@@ -70,7 +79,7 @@
     const goal = st.settings.dailyGoal, weekGoal = st.settings.weeklyGoal;
     const todaySec = st.sessions.filter((s) => L.isSameDay(s.start, now)).reduce((a, s) => a + s.durationSeconds, 0);
     const weekStart = L.startOfWeek(now);
-    const weekPages = st.sessions.filter((s) => s.start >= weekStart).reduce((a, s) => a + L.pagesRead(s), 0);
+    const weekPages = st.sessions.filter((s) => s.start >= weekStart).reduce((a, s) => a + L.pagesRead(s), 0) + L.sumBonus(L.bonusPages(st.books, st.sessions), weekStart);
     const days = L.activeDays(st.sessions), streak = L.computeStreaks(days).current;
     const hour = new Date().getHours();
     const base = hour < 6 ? t('Boa madrugada') : hour < 13 ? t('Bom dia') : hour < 20 ? t('Boa tarde') : t('Boa noite');
@@ -205,7 +214,8 @@
             h('div', { class: 'stack tight grow' },
               h('h1', { class: 'serif' }, book.title), book.author ? h('p', { class: 'muted' }, book.author) : null, status,
               book.status === 'finished' ? UI.stars(book.rating, async (v) => { book.rating = v; await S.saveBook(book); await RF.app.checkAchievements(); RF.app.refresh(); }) : null,
-              h('div', { class: 'row gap wrap center' }, book.totalPages > 0 ? h('span', { class: 'muted small' }, t('{n} páginas', { n: book.totalPages })) : null, genre ? h('span', { class: 'chip' }, t(genre[0])) : null),
+              h('div', { class: 'row gap wrap center' }, book.totalPages > 0 ? h('span', { class: 'muted small' }, t('{n} páginas', { n: book.totalPages })) : null, genre ? h('span', { class: 'chip' }, t(genre[0])) : null,
+                book.boughtAt ? h('span', { class: 'chip' }, icon('cart', 12), t('Comprado em {store}', { store: book.boughtAt })) : null),
               h('div', { class: 'row gap wrap' },
                 h('button', { class: 'btn' + (book.favorite ? ' on-fav' : ''), onClick: () => toggleFlag(book, 'favorite') }, icon('heart', 16, { fill: book.favorite }), t('Favorito')),
                 h('button', { class: 'btn' + (book.recommend ? ' on-rec' : ''), onClick: () => toggleFlag(book, 'recommend') }, icon('gift', 16, { fill: book.recommend }), t('Recomendo'))),
@@ -236,17 +246,18 @@
   function stats() {
     const st = S.state, start = L.rangeStart(statsRange, st.sessions);
     const tt = L.totals(st.sessions.filter((s) => s.start >= start));
+    const bonus = L.bonusPages(st.books, st.sessions);
     const finished = st.books.filter((b) => b.status === 'finished' && b.finishedAt && b.finishedAt >= start).length;
     const allT = L.totals(st.sessions), streaks = L.computeStreaks(L.activeDays(st.sessions));
     const longest = st.sessions.reduce((m, s) => Math.max(m, s.durationSeconds), 0);
     const pace = allT.seconds > 0 ? allT.pages / (allT.seconds / 3600) : 0;
-    const buckets = L.buckets(st.sessions, statsRange);
+    const buckets = L.buckets(st.sessions, statsRange, Date.now(), bonus);
     const row = (a, b) => h('div', { class: 'row between' }, h('span', { class: 'muted' }, a), h('strong', null, b));
     return h('div', { class: 'page' },
       pageHead(t('Estatísticas'), null, seg([['week', t('Semana')], ['month', t('Mês')], ['year', t('Ano')], ['all', t('Total')]], statsRange, (k) => { statsRange = k; })),
-      h('div', { class: 'tiles four' }, tile('clock', t('Tempo de leitura'), L.duration(tt.seconds)), tile('file', t('Páginas'), String(tt.pages)), tile('list', t('Sessões'), String(tt.sessions)), tile('check', t('Livros terminados'), String(finished))),
+      h('div', { class: 'tiles four' }, tile('clock', t('Tempo de leitura'), L.duration(tt.seconds)), tile('file', t('Páginas'), String(tt.pages + L.sumBonus(bonus, start))), tile('list', t('Sessões'), String(tt.sessions)), tile('check', t('Livros terminados'), String(finished))),
       h('div', { class: 'card' }, h('div', { class: 'row between center' }, h('h3', null, statsMetric === 'time' ? t('Minutos lidos') : t('Páginas lidas')), seg([['time', t('Tempo')], ['pages', t('Páginas')]], statsMetric, (k) => { statsMetric = k; })),
-        UI.barChart(buckets, statsMetric, statsRange), buckets.some((b) => b.minutes > 0) ? null : h('p', { class: 'muted center-text' }, t('Sem leituras neste período'))),
+        UI.barChart(buckets, statsMetric, statsRange), buckets.some((b) => b.minutes > 0 || b.pages > 0) ? null : h('p', { class: 'muted center-text' }, t('Sem leituras neste período'))),
       h('div', { class: 'two-col' },
         h('div', { class: 'card row gap' },
           h('div', { class: 'grow' }, h('div', { class: 'streak on small' }, icon('flame', 16, { fill: true }), t('Sequência atual')), h('div', { class: 'tile-val' }, tn('days', streaks.current))),
@@ -277,22 +288,28 @@
         const defs = L.ACHIEVEMENTS.filter((a) => a.category === cat.id), next = defs.find((a) => !st.unlocked.has(a.id)), value = cat.value(snap);
         return h('div', { class: 'card' },
           h('div', { class: 'row gap center' }, icon(cat.icon, 18, { cls: 'accent' }), h('h3', { class: 'serif grow' }, t(cat.title)), h('span', { class: 'muted small' }, `${defs.filter((a) => st.unlocked.has(a.id)).length}/${defs.length}`)),
-          h('div', { class: 'medals' }, ...defs.map((a) => h('button', { class: 'medal-btn', title: L.achTitle(a), onClick: () => detail(a) }, UI.medal(a, st.unlocked.has(a.id), 58), h('span', { class: 'medal-name' }, L.tierName(a.tier))))),
+          h('div', { class: 'medals' }, ...defs.map((a) => h('button', { class: 'medal-btn', title: medalTip(a), onClick: () => detail(a) }, UI.medal(a, st.unlocked.has(a.id), 58), h('span', { class: 'medal-name' }, L.tierName(a.tier))))),
           next ? h('div', { class: 'stack tight' }, h('div', { class: 'row between small' }, h('strong', null, t('Próxima: {name}', { name: L.achTitle(next) })), h('span', { class: 'muted' }, L.progressText(cat, value, next.target))), UI.progressBar(value / next.target, L.tierColor(next.tier)))
             : h('p', { class: 'accent strong small' }, t('Categoria completa')));
       })));
   }
 
   /* ---------- Recomendados ---------- */
+  /** Adiciona a «Quero ler». Se faltar algo obrigatório (ex.: páginas), abre o formulário já preenchido. A capa do amigo vai junto. */
   async function addToWishlist(it) {
-    const b = S.newBook({ title: it.title, author: it.author, totalPages: it.pages || 0, status: 'wantToRead', genre: it.genre || '', color: (L.GENRES[it.genre] || [])[1] || L.SPINE_PALETTE[0] });
-    await S.saveBook(b); await RF.app.checkAchievements(); RF.app.refresh();
+    const cover = it.coverData ? S.dataUrlToBlob(it.coverData) : null;
+    const base = { title: it.title, author: it.author || '', totalPages: it.pages || 0, status: 'wantToRead', genre: it.genre || '', color: (L.GENRES[it.genre] || [])[1] || L.SPINE_PALETTE[0] };
+    if (base.author && base.totalPages > 0) {
+      const b = S.newBook(base);
+      if (cover) b.coverId = await S.addImage(cover);
+      await S.saveBook(b); await RF.app.checkAchievements(); RF.app.refresh();
+    } else RF.dialogs.openBookForm(null, { ...base, ...(cover ? { coverBlob: cover } : {}) });
   }
   const haveBook = (title, author) => S.state.books.some((b) => (b.title + '|' + b.author).toLowerCase() === (title + '|' + author).toLowerCase());
   const TAGS = { top: 'Mais vendido', hot: 'Em alta', new: 'Novidade' };
 
   function recCard(it, extra) {
-    const fake = { id: it.title + it.author, title: it.title, color: (L.GENRES[it.genre] || [])[1] || '#2F4858', coverId: null };
+    const fake = { id: it.title + it.author, title: it.title, color: (L.GENRES[it.genre] || [])[1] || '#2F4858', coverId: null, coverData: it.coverData || null };
     const have = haveBook(it.title, it.author);
     return h('div', { class: 'card rec-card' }, h('div', { class: 'row gap' }, UI.coverEl(fake, 62),
       h('div', { class: 'grow stack tight' }, h('div', { class: 'strong serif' }, it.title), h('div', { class: 'muted small' }, it.author),
@@ -324,8 +341,10 @@
           : emptyCard('gift', t('Já tens todas as sugestões deste género'), t('Experimenta outro género.')));
     } else if (recTab === 'friends') {
       const items = RF.remote.signedIn() ? RF.remote.recommendations() : [];
-      body = items.length ? h('div', { class: 'rec-grid' }, ...items.map((r) => recCard({ title: r.title, author: r.author },
-        h('div', { class: 'row gap center small link', onClick: () => RF.app.go('friend:' + r.u.id) }, UI.avatar(22, { name: r.u.name, color: r.u.color, photo: r.u.avatar }), h('span', null, t('{name} recomenda', { name: r.u.name })), r.note ? h('span', { class: 'muted' }, '· ' + r.note) : null))))
+      body = items.length ? h('div', { class: 'rec-grid' }, ...items.map((r) => recCard({ title: r.title, author: r.author, coverData: r.coverData },
+        h('div', { class: 'stack tight rec-extra' },
+          h('div', { class: 'row gap center small link', onClick: () => RF.app.go('friend:' + r.u.id) }, UI.avatar(22, { name: r.u.name, color: r.u.color, photo: r.u.avatar }), h('span', null, t('{name} recomenda', { name: r.u.name })), r.rating > 0 ? UI.starsStatic(r.rating, 13) : null),
+          h('div', { class: 'rec-note' }, r.note ? '“' + r.note + '”' : (r.review || '—'))))))
         : emptyCard('users', t('Ainda não há recomendações de amigos'), t('Segue amigos na página Amigos e as recomendações deles aparecem aqui.'), h('button', { class: 'btn primary', onClick: () => RF.app.go('friends') }, icon('users', 16), t('Ir para Amigos')));
     } else {
       const mine = st.books.filter((b) => b.recommend);
@@ -423,7 +442,7 @@
     return h('div', { class: 'page' }, pageHead(t('Amigos'), t('Segue leitores e partilha só o que quiseres.')),
       h('div', { class: 'two-col' },
         h('div', { class: 'card stack' }, h('h3', null, t('O teu ID')),
-          h('div', { class: 'id-box' }, h('span', { class: 'serif big' }, me.handle), h('button', { class: 'icon-btn', title: t('Copiar'), onClick: () => navigator.clipboard && navigator.clipboard.writeText(me.handle) }, icon('copy', 16))),
+          h('div', { class: 'id-box' }, h('span', { class: 'serif big' }, me.handle), h('button', { class: 'icon-btn', title: t('Copiar'), onClick: () => copyText(me.handle) }, icon('copy', 16))),
           h('p', { class: 'muted small' }, t('Outras pessoas encontram-te por este ID. Os 6 números são únicos.')),
           h('div', { class: 'row between center wrap' }, h('span', { class: 'muted small' }, status), h('button', { class: 'btn small-btn', onClick: () => act(() => R.pull(true)) }, icon('rotate', 14), t('Sincronizar agora')))),
         h('div', { class: 'card stack' }, h('h3', null, t('Seguir alguém')), h('div', { class: 'row gap' }, input, h('button', { class: 'btn primary', onClick: add }, icon('send', 16), t('Pedir'))), msg, h('p', { class: 'muted small' }, t('A pessoa tem de aceitar o pedido antes de veres o perfil dela.')))),
@@ -436,7 +455,9 @@
 
   /* ---------- Perfil público (de um amigo ou o meu em pré-visualização) ---------- */
   const KIND_TITLES = { reading: 'A ler agora', favorites: 'Favoritos', finished: 'Livros lidos', recs: 'Recomendações', activity: 'Atividade' };
-  const thumb = (it, withNote) => h('div', { class: 'thumb', title: it.title + (it.author ? ' — ' + it.author : '') }, UI.coverEl(it, 76), h('span', { class: 'small strong clip2' }, it.title), withNote && it.note ? h('span', { class: 'muted tiny clip2' }, '“' + it.note + '”') : null);
+  const thumb = (it, withNote) => h('div', { class: 'thumb', title: it.title + (it.author ? ' — ' + it.author : '') }, UI.coverEl(it, 76), h('span', { class: 'small strong clip2' }, it.title),
+    it.rating > 0 ? UI.starsStatic(it.rating, 12) : null,
+    (withNote && it.note) ? h('span', { class: 'muted tiny clip2' }, '“' + it.note + '”') : (it.review ? h('span', { class: 'muted tiny clip2' }, it.review) : null));
   const activityLine = (a) => h('div', { class: 'card flat stack tight session-card' }, h('div', { class: 'row between center' }, h('span', { class: 'strong serif clip' }, a.book || t('Livro removido')), h('span', { class: 'muted small' }, agoFromMs(a.when))),
     unlockChips(a.unlocked), h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(a.minutes * 60)), metric(t('Páginas'), String(a.pages)), metric(t('Ritmo'), L.pace(a.minutes > 0 ? a.pages / (a.minutes / 60) : 0))));
 
@@ -460,7 +481,7 @@
         sec.activity.length > 3 ? h('button', { class: 'btn small-btn', onClick: () => ctx.onMore('activity') }, t('Ver mais')) : null),
         sec.activity.length ? h('div', { class: 'stack' }, ...sec.activity.slice(0, 3).map(activityLine)) : h('span', { class: 'muted small' }, '—')),
       sec.achievements === undefined ? lockedCard(t('Conquistas'), 'trophy') : h('div', { class: 'card stack' }, h('h3', { class: 'row gap center' }, icon('trophy', 16), t('Conquistas'), h('span', { class: 'count' }, String(sec.achievements.length))),
-        sec.achievements.length ? h('div', { class: 'medals' }, ...sec.achievements.map((id) => L.achById[id]).filter(Boolean).map((a) => h('div', { class: 'medal-btn', title: L.achTitle(a) }, UI.medal(a, true, 52), h('span', { class: 'medal-name' }, L.achTitle(a))))) : h('span', { class: 'muted small' }, '—')));
+        sec.achievements.length ? h('div', { class: 'medals' }, ...sec.achievements.map((id) => L.achById[id]).filter(Boolean).map((a) => h('div', { class: 'medal-btn', title: medalTip(a) }, UI.medal(a, true, 52), h('span', { class: 'medal-name' }, L.achTitle(a))))) : h('span', { class: 'muted small' }, '—')));
   }
 
   /** Lista completa (miniaturas de todos os livros ou todas as atividades). */
@@ -469,10 +490,12 @@
     return h('div', { class: 'stack' }, h('button', { class: 'btn ghost back', onClick: onBack }, icon('back', 18), t('Voltar')),
       h('div', { class: 'row gap center' }, UI.avatar(40, { name: p.name, color: p.color, photo: p.photo }), h('div', null, h('h2', { class: 'serif' }, t(KIND_TITLES[kind])), h('div', { class: 'muted small' }, `${p.name} · ${items.length}`))),
       kind === 'activity' ? h('div', { class: 'stack' }, ...items.map(activityLine))
-        : h('div', { class: 'full-list' }, ...items.map((it) => h('div', { class: 'full-item', title: it.title }, UI.coverEl(it, 96), h('div', { class: 'strong small clip2' }, it.title), h('div', { class: 'muted tiny clip' }, it.author), kind === 'recs' && it.note ? h('div', { class: 'muted tiny clip2' }, '“' + it.note + '”') : null))));
+        : h('div', { class: 'full-list' }, ...items.map((it) => h('div', { class: 'full-item', title: it.title }, UI.coverEl(it, 96), h('div', { class: 'strong small clip2' }, it.title), h('div', { class: 'muted tiny clip' }, it.author),
+          it.rating > 0 ? UI.starsStatic(it.rating, 12) : null, kind === 'recs' && it.note ? h('div', { class: 'muted tiny clip2' }, '“' + it.note + '”') : null, it.review ? h('div', { class: 'muted tiny clip3' }, it.review) : null,
+          p.canAdd ? (haveBook(it.title, it.author) ? h('span', { class: 'muted tiny' }, t('Já está na tua biblioteca')) : h('button', { class: 'btn small-btn', onClick: () => addToWishlist(it) }, icon('plus', 12), t('Quero ler'))) : null))));
   }
 
-  const remotePublic = (f) => ({ name: f.name, id: f.id, color: f.color, photo: f.avatar, sections: RF.remote.sectionsOf(f.id) || {} });
+  const remotePublic = (f) => ({ name: f.name, id: f.id, color: f.color, photo: f.avatar, sections: RF.remote.sectionsOf(f.id) || {}, canAdd: true });
   function openMyPreview() {
     const mine = SOC.myPublicProfile(S);
     mine.photo = S.imgUrl(mine.photoId);
@@ -497,13 +520,47 @@
         pending ? h('div', { class: 'row gap' }, h('span', { class: 'chip' }, t('Pedido enviado')), h('button', { class: 'btn small-btn', onClick: () => act(() => R.unfollow(id)) }, t('Cancelar')))
           : h('button', { class: 'btn primary', onClick: () => act(() => R.follow(id)) }, icon('userPlus', 16), t('Seguir'))));
     }
+    RF.remote.loadCovers(id).then((n) => { if (n) RF.app.refresh(); }).catch(() => {});
     return h('div', { class: 'page narrow' }, back, publicView(remotePublic(person), { onMore: (kind) => RF.app.go('friendlist:' + id + ':' + kind) }),
       h('div', { class: 'row end' }, h('button', { class: 'btn danger-text', onClick: async () => { await act(() => R.unfollow(id)); RF.app.go('friends'); } }, t('Deixar de seguir'))));
   }
   function friendListView(id, kind) {
     const R = RF.remote, person = R.person(id);
     if (!R.signedIn() || !person || R.relation(id).iFollow !== 'accepted') { setTimeout(() => RF.app.go('friend:' + id), 0); return h('div'); }
+    RF.remote.loadCovers(id, [kind === 'recs' ? 'recommendations' : kind]).then((n) => { if (n) RF.app.refresh(); }).catch(() => {});
     return h('div', { class: 'page narrow' }, listView(remotePublic(person), kind, () => RF.app.go('friend:' + id)));
+  }
+
+  /* ---------- Rankings entre amigos ---------- */
+  let rankPeriod = 'total';
+  function rankings() {
+    const R = RF.remote, st = S.state;
+    const head = pageHead(t('Rankings'), t('Compara a tua leitura com a dos teus amigos.'), seg([['week', t('Semana')], ['month', t('Mês')], ['total', t('Total')]], rankPeriod, (k) => { rankPeriod = k; }));
+    if (!R.configured() || !R.signedIn()) return h('div', { class: 'page narrow' }, pageHead(t('Rankings'), t('Compara a tua leitura com a dos teus amigos.')),
+      emptyCard('crown', t('Entra na tua conta para ver os rankings'), t('Os rankings usam as estatísticas de quem segues e partilha.'), h('button', { class: 'btn primary', onClick: () => RF.app.go('friends') }, icon('users', 16), t('Ir para Amigos'))));
+    const me = { id: R.state.user.handle, name: st.settings.name || R.state.user.name, color: SOC.hue(R.state.user.handle), avatar: S.imgUrl(st.settings.photoId), me: true, stats: SOC.statsOf(S.state) };
+    const people = [me, ...R.rankingPeople()];
+    const boards = [['time', 'clock', 'Tempo de leitura'], ['pages', 'file', 'Páginas lidas'], ['books', 'check', 'Livros lidos']];
+    if (rankPeriod === 'total') boards.push(['pace', 'activity', 'Ritmo (páginas por hora)'], ['streak', 'flame', 'Sequência atual']);
+    const fmt = { time: (v) => L.duration(v * 60), pages: (v) => String(v), books: (v) => String(v), pace: (v) => L.pace(v), streak: (v) => tn('days', v) };
+    const who = (p, size) => { const a = UI.avatar(size, { name: p.name, color: p.color, photo: p.avatar }); if (!p.me) { a.classList.add('link'); a.addEventListener('click', () => RF.app.go('friend:' + p.id)); } return a; };
+    const board = ([metric, ic, title]) => {
+      const rows = SOC.ranking(people, metric, rankPeriod), top = rows.slice(0, 3);
+      const pod = (rank) => {
+        const x = top[rank - 1];
+        if (!x) return h('div', { class: 'pod p' + rank, 'data-empty': '1' }, h('div', { class: 'pod-base' }, String(rank)));
+        return h('div', { class: 'pod p' + rank + (x.p.me ? ' me' : '') }, who(x.p, rank === 1 ? 58 : 46), h('div', { class: 'strong small clip pod-name' }, x.p.me ? `${x.p.name} (${t('tu')})` : x.p.name),
+          h('div', { class: 'pod-val' }, fmt[metric](x.v)), h('div', { class: 'pod-base' }, String(rank)));
+      };
+      return h('div', { class: 'card stack rank-card' }, h('h3', { class: 'row gap center' }, icon(ic, 16), t(title)),
+        rows.length ? h('div', { class: 'podium' }, pod(2), pod(1), pod(3)) : h('span', { class: 'muted small' }, '—'),
+        rows.length > 3 ? h('div', { class: 'stack tight' }, ...rows.slice(3).map((x, i) => h('div', { class: 'rank-row' + (x.p.me ? ' me' : '') }, h('span', { class: 'rank-n' }, String(i + 4)), who(x.p, 28), h('span', { class: 'grow clip' }, x.p.me ? `${x.p.name} (${t('tu')})` : x.p.name), h('strong', null, fmt[metric](x.v))))) : null);
+    };
+    const missing = people.filter((p) => !p.me && !p.stats).map((p) => p.name);
+    return h('div', { class: 'page' }, head,
+      people.length < 2 ? h('div', { class: 'note' }, icon('users', 16), t('Segue amigos e espera que aceitem para veres como te comparas.')) : null,
+      h('div', { class: 'rank-grid' }, ...boards.map(board)),
+      missing.length ? h('p', { class: 'muted small' }, t('Sem estatísticas partilhadas: {names}.', { names: missing.join(', ') })) : null);
   }
 
   /* ---------- Perfil ---------- */
@@ -542,7 +599,7 @@
       h('div', { class: 'card stack' },
         h('div', { class: 'row gap center' }, UI.avatar(96),
           h('div', { class: 'grow stack tight' }, h('input', { type: 'text', class: 'name-input serif', value: s.name, placeholder: t('Como te chamas?'), onChange: (e) => { s.name = e.target.value.trim(); save(); RF.app.refresh(); } }),
-            h('span', { class: 'muted small' }, `${L.duration(tt.seconds)} · ${t('{n} págs', { n: tt.pages })} · ${tn('books', finished)}`),
+            h('span', { class: 'muted small' }, `${L.duration(tt.seconds)} · ${t('{n} págs', { n: tt.pages + L.sumBonus(L.bonusPages(st.books, st.sessions)) })} · ${tn('books', finished)}`),
             h('div', { class: 'row gap wrap' }, UI.photoPicker(async (blob) => { await S.removeImage(s.photoId); s.photoId = await S.addImage(blob); await save(); await RF.app.checkAchievements(); RF.app.refresh(); }, { crop: true, title: t('Enquadrar foto de perfil'), aspect: 1, outW: 512 }),
               s.photoId ? h('button', { class: 'btn ghost danger-text', onClick: async () => { await S.removeImage(s.photoId); s.photoId = null; await save(); RF.app.refresh(); } }, icon('trash', 14), t('Remover foto')) : null))),
         h('label', { class: 'field' }, h('span', null, t('Descrição')), bio)),
@@ -578,5 +635,5 @@
   }
 
   RF.updateText = updateText;
-  RF.views = { home, library, bookView, stats, achievements, recommended, friends, friendView, friendListView, profile };
+  RF.views = { home, library, bookView, stats, achievements, rankings, recommended, friends, friendView, friendListView, profile };
 })(typeof window !== 'undefined' ? window : globalThis);

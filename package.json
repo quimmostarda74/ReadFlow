@@ -1,6 +1,6 @@
 {
   "name": "readflow",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "ReadFlow: o Strava da leitura, para o computador",
   "main": "main.js",
   "author": "ReadFlow",

@@ -77,7 +77,9 @@
     copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
     eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
     sun: '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
-    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'
+    send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+    crown: '<path d="m2 4 3 12h14l3-12-6 5-4-8-4 8-6-5z"/><path d="M5 20h14"/>',
+    cart: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>'
   };
   function icon(name, size = 20, opts = {}) {
     return h('span', {
@@ -218,7 +220,7 @@
   }
 
   function coverEl(book, width = 90) {
-    const url = RF.store.imgUrl(book.coverId);
+    const url = RF.store.imgUrl(book.coverId) || book.coverData || null;
     const el = h('div', { class: 'cover', style: { width: width + 'px', height: Math.round(width * 1.5) + 'px' } });
     if (url) {
       el.style.backgroundImage = `url("${url}")`;
@@ -236,6 +238,13 @@
     return h('div', { class: 'ring', style: { width: size + 'px', height: size + 'px' } },
       h('div', { html: `<svg viewBox="0 0 100 100" width="${size}" height="${size}"><circle cx="50" cy="50" r="${r}" class="ring-bg"/><circle cx="50" cy="50" r="${r}" class="ring-fg" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}" transform="rotate(-90 50 50)"/></svg>` }),
       h('div', { class: 'ring-center' }, centerNode));
+  }
+
+  /** Estrelas só de leitura (para mostrar a avaliação de outra pessoa). */
+  function starsStatic(n, size = 13) {
+    const el = h('span', { class: 'stars-static', title: n + ' ★' });
+    for (let i = 1; i <= 5; i++) el.append(icon('star', size, { fill: i <= n, cls: i <= n ? 'on' : 'off' }));
+    return el;
   }
 
   function progressBar(p, color) {
@@ -485,6 +494,6 @@
 
   RF.ui = {
     h, icon, openModal, modalHeader, hasModal, hasModalAbove, confirmDialog, promptDialog, toastAchievements,
-    medal, avatar, spineEl, coverEl, ring, progressBar, stars, barChart, heatmap, photoPicker, openCropper, openCamera
+    medal, avatar, spineEl, coverEl, ring, progressBar, stars, starsStatic, barChart, heatmap, photoPicker, openCropper, openCamera
   };
 })(typeof window !== 'undefined' ? window : globalThis);

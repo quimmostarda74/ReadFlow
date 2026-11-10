@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, session, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, session, shell, ipcMain, dialog, clipboard } = require('electron');
 const path = require('path');
 
 // A atualização automática só existe na versão instalada (não no modo de desenvolvimento).
@@ -45,6 +45,7 @@ function setupUpdater() {
 }
 
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('app:copy', (_event, text) => { try { clipboard.writeText(String(text).slice(0, 1000)); return true; } catch (e) { return false; } });
 ipcMain.handle('app:check-updates', async () => {
   if (!autoUpdater || !app.isPackaged) return { status: 'unavailable' };
   try { await autoUpdater.checkForUpdates(); return { status: 'checked' }; }
@@ -53,8 +54,8 @@ ipcMain.handle('app:check-updates', async () => {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
-  // Só a webcam (para fotografar capas e lombadas) é permitida.
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(permission === 'media'));
+  // Só a webcam (fotografar capas e lombadas) e copiar texto são permitidos.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(permission === 'media' || permission === 'clipboard-sanitized-write'));
   createWindow();
   setupUpdater();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

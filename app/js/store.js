@@ -12,7 +12,7 @@
     id: 'settings', name: '', bio: '', photoId: null, libraryName: '', shelfBgImageId: null, shelfBgDark: true, privacyV2: true, dailyGoal: 20, weeklyGoal: 150, libraryStyle: 'spines',
     shelfTheme: 'wood', shelfBg: 'neutral', seenCosmetics: null, appTheme: 'classic', lang: 'pt',
     handleName: '', handleNumber: 0,
-    privacy: { reading: true, finished: true, favorites: true, recommendations: true, bio: true, achievements: true, activity: true, stats: true },
+    privacy: { reading: true, finished: true, favorites: true, recommendations: true, bio: true, achievements: true, activity: true, stats: true, reviews: true },
     social: { demo: false, following: {}, followers: {}, queued: [] }
   };
   const mergeSettings = (saved) => {
@@ -109,7 +109,7 @@
       id: L.uid(), title: '', author: '', totalPages: 0, currentPage: 0, status: 'wantToRead',
       addedAt: Date.now(), startedAt: null, finishedAt: null, rating: 0, notes: '',
       color: L.SPINE_PALETTE[0], coverId: null, spineId: null, shelfIds: [],
-      genre: '', favorite: false, recommend: false, recNote: '', ...fields
+      genre: '', favorite: false, recommend: false, recNote: '', boughtAt: '', ...fields
     };
   }
   async function saveBook(book) { upsert(state.books, book); await put('books', book); }
@@ -266,6 +266,6 @@
   RF.store = {
     state, init, imgUrl, addImage, removeImage, getBook, newBook, saveBook, deleteBook,
     saveSession, deleteSession, saveShelf, deleteShelf, unlock, saveSettings, saveActive, clearActive, getKV, putKV, deleteKV,
-    exportAll, importAll, wipe, loadSample
+    exportAll, importAll, wipe, loadSample, dataUrlToBlob
   };
 })(typeof window !== 'undefined' ? window : globalThis);

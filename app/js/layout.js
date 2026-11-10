@@ -8,8 +8,8 @@
 
   const ROW_H = 292, FACE_W = 112;
   const LEVELS = [
-    { gap: 12, face: 30, lying: 0, pileMax: 0 },    // 0: espaçosa
-    { gap: 8, face: 10, lying: 12, pileMax: 4 },    // 1: equilibrada
+    { gap: 12, face: 0, lying: 10, pileMax: 3 },    // 0: espaçosa
+    { gap: 8, face: 0, lying: 14, pileMax: 4 },     // 1: equilibrada
     { gap: 5, face: 0, lying: 30, pileMax: 6 },     // 2: compacta
     { gap: 3, face: 0, lying: 55, pileMax: 8 }      // 3: muito cheia
   ];
@@ -43,8 +43,7 @@
     const faces = [], lying = [], vert = [];
     for (const b of books) {
       const k = hash(b) % 100;
-      if (featured.has(b.id) && level <= 1) faces.push(b);
-      else if (k < cfg.face) faces.push(b);
+      if (k < cfg.face) faces.push(b);
       else if (k >= 100 - cfg.lying) lying.push(b);
       else vert.push(b);
     }

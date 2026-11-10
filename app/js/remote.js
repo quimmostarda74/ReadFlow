@@ -16,6 +16,9 @@
   const state = { user: null, lastSync: 0, syncing: false, offline: false };
   const cache = { following: [], followers: [], shared: {}, byHandle: {} };
   let known = null, lastHash = '', pushTimer = null, timers = [], hooks = { change() {}, notify() {} };
+  let serverCovers = null, coversOff = false;           // capas já enviadas / tabela de capas indisponível
+  const thumbCache = new Map();                          // id da capa -> miniatura (data URL)
+  const coversByUid = {};                                // uid -> { ck: data URL | null }
 
   /* ---------- HTTP ---------- */
   async function http(method, path, o = {}) {
@@ -56,7 +59,7 @@
     }
   }
   async function localSignOut() {
-    session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = '';
+    session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = ''; serverCovers = null; coversOff = false;
     await S.deleteKV('auth');
   }
   const loadProfile = async () => {
@@ -135,10 +138,66 @@
       } catch (e) { resolve(null); }
     });
   }
+  /** Miniatura 96x144 de uma capa (substituível nos testes). */
+  function defaultThumb(coverId) {
+    return new Promise((resolve) => {
+      try {
+        const url = S.imgUrl(coverId);
+        if (!url || typeof Image === 'undefined') return resolve(null);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const w = 96, h = 144, c = document.createElement('canvas'); c.width = w; c.height = h;
+            const x = c.getContext('2d'), k = Math.max(w / img.width, h / img.height);
+            x.drawImage(img, (w - img.width * k) / 2, (h - img.height * k) / 2, img.width * k, img.height * k);
+            let q = 0.62, d = c.toDataURL('image/jpeg', q);
+            while (d.length > 30000 && q > 0.3) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }
+            resolve(d.length <= 38000 ? d : null);
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      } catch (e) { resolve(null); }
+    });
+  }
+  const api = { thumbProvider: defaultThumb };
+  /** Capas dos livros que vão ser partilhados (só das listas ligadas em Privacidade). */
+  async function coverThumbs() {
+    const p = S.state.settings.privacy, out = new Map();
+    const want = S.state.books.filter((b) => b.coverId && ((p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend)));
+    for (const b of want.slice(0, 400)) {
+      if (!thumbCache.has(b.coverId)) thumbCache.set(b.coverId, await api.thumbProvider(b.coverId));
+      if (thumbCache.get(b.coverId)) out.set(b.coverId, thumbCache.get(b.coverId));
+    }
+    return out;
+  }
+  async function syncCovers(thumbs) {
+    if (coversOff) return;
+    try {
+      if (!serverCovers) serverCovers = new Set(((await rest('GET', 'covers', `select=ck&user_id=eq.${session.uid}`)) || []).map((r) => r.ck));
+      const missing = [...thumbs.keys()].filter((k) => !serverCovers.has(k));
+      for (let i = 0; i < missing.length; i += 8) {
+        const chunk = missing.slice(i, i + 8);
+        await rest('POST', 'covers', 'on_conflict=user_id,ck', chunk.map((k) => ({ user_id: session.uid, ck: k, data: thumbs.get(k) })), 'resolution=merge-duplicates');
+        chunk.forEach((k) => serverCovers.add(k));
+      }
+      const stale = [...serverCovers].filter((k) => !thumbs.has(k));
+      for (let i = 0; i < stale.length; i += 25) {
+        const chunk = stale.slice(i, i + 25);
+        await rest('DELETE', 'covers', `user_id=eq.${session.uid}&ck=in.(${chunk.join(',')})`);
+        chunk.forEach((k) => serverCovers.delete(k));
+      }
+    } catch (e) {
+      if (e.code === 'network') throw e;
+      coversOff = true;           // a tabela ainda não existe no servidor: o perfil continua a funcionar, só sem capas
+    }
+  }
+
   let avatarCache = { id: null, data: null };
   async function pushNow(force) {
     if (!session || !state.user) return;
-    const st = S.state.settings, sections = SOC.publicSections(S);
+    const thumbs = await coverThumbs();
+    const st = S.state.settings, sections = SOC.publicSections(S, new Set(thumbs.keys()));
     if (avatarCache.id !== st.photoId) avatarCache = { id: st.photoId, data: st.photoId ? await avatarThumb() : null };
     const profile = { display_name: (st.name || st.handleName || '').slice(0, 40), avatar: avatarCache.data, privacy: st.privacy };
     const hash = JSON.stringify({ profile, sections });
@@ -148,6 +207,7 @@
     if (rows.length) await rest('POST', 'shared', 'on_conflict=user_id,section', rows, 'resolution=merge-duplicates');
     const off = SOC.ALL_SECTIONS.filter((s) => !(s in sections));
     if (off.length) await rest('DELETE', 'shared', `user_id=eq.${session.uid}&section=in.(${off.join(',')})`);
+    await syncCovers(thumbs);
     lastHash = hash;
   }
   /** Agenda o envio (junta várias alterações seguidas). */
@@ -185,8 +245,41 @@
         for (const f of following) if (f.status === 'accepted' && !known.acc.has(f.uid)) hooks.notify('accepted', f);
       }
       known = snapshot; state.lastSync = Date.now(); state.offline = false;
+      prefetchCovers();
     } catch (e) { if (e.code === 'network') state.offline = true; else throw e; }
     finally { state.syncing = false; hooks.change(); }
+  }
+
+  /* ---------- Capas dos amigos (descarregadas à medida que são precisas) ---------- */
+  const LISTS = ['reading', 'finished', 'favorites', 'recommendations'];
+  function keysOf(uid, sections, limit) {
+    const sh = cache.shared[uid] || {}, out = [];
+    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) if (it.ck) out.push(it.ck);
+    return out;
+  }
+  async function fetchCovers(uid, keys) {
+    const have = (coversByUid[uid] = coversByUid[uid] || {});
+    const need = [...new Set(keys)].filter((k) => k && !(k in have));
+    let got = 0;
+    for (let i = 0; i < need.length; i += 25) {
+      const chunk = need.slice(i, i + 25);
+      try {
+        for (const r of (await rest('GET', 'covers', `select=ck,data&user_id=eq.${uid}&ck=in.(${chunk.join(',')})`)) || []) { have[r.ck] = r.data; got++; }
+        for (const k of chunk) if (!(k in have)) have[k] = null;
+      } catch (e) { break; }
+    }
+    return got;
+  }
+  /** Descarrega as capas das primeiras 12 entradas de cada lista (rápido) e avisa o ecrã. */
+  async function prefetchCovers() {
+    let total = 0;
+    for (const f of cache.following) if (f.status === 'accepted') total += await fetchCovers(f.uid, keysOf(f.uid, LISTS, 12));
+    if (total) hooks.change();
+  }
+  /** Descarrega todas as capas de uma pessoa (para a lista completa). Devolve quantas chegaram. */
+  async function loadCovers(handle, sections) {
+    const p = byHandle(handle);
+    return p ? fetchCovers(p.uid, keysOf(p.uid, sections || LISTS)) : 0;
   }
 
   /* ---------- Ações sobre pessoas ---------- */
@@ -209,7 +302,7 @@
     const a = cache.following.find((f) => f.id === handle), b = cache.followers.find((f) => f.id === handle);
     return { iFollow: a ? a.status : 'none', followsMe: b ? b.status : 'none' };
   };
-  const sectionsOf = (handle) => { const p = byHandle(handle); return p ? SOC.fromServer(cache.shared[p.uid] || {}) : null; };
+  const sectionsOf = (handle) => { const p = byHandle(handle); return p ? SOC.fromServer(cache.shared[p.uid] || {}, coversByUid[p.uid]) : null; };
   function feed() {
     const out = [];
     for (const f of cache.following) if (f.status === 'accepted') for (const a of (cache.shared[f.uid] || {}).activity || []) out.push({ u: f, p: a, when: a.when });
@@ -217,8 +310,13 @@
   }
   function recommendations() {
     const out = [];
-    for (const f of cache.following) if (f.status === 'accepted') for (const r of (cache.shared[f.uid] || {}).recommendations || []) out.push({ u: f, title: r.title, author: r.author, note: r.note });
+    for (const f of cache.following) if (f.status === 'accepted') for (const r of (cache.shared[f.uid] || {}).recommendations || []) out.push({ u: f, title: r.title, author: r.author, note: r.note, rating: r.rating || 0, review: r.review || '', ck: r.ck || '', coverData: (coversByUid[f.uid] || {})[r.ck] || null });
     return out;
+  }
+
+  /** Pessoas que conto nos rankings: quem sigo (aprovado). As minhas entram na vista. */
+  function rankingPeople() {
+    return cache.following.filter((f) => f.status === 'accepted').map((f) => ({ id: f.id, name: f.name, color: f.color, avatar: f.avatar, me: false, stats: (cache.shared[f.uid] || {}).stats || null }));
   }
 
   /** Verifica a configuração (URL, chave, registos novos, confirmação por e-mail) sem criar nada. */
@@ -259,7 +357,7 @@
   RF.remote = {
     configured, signedIn: () => !!(session && state.user), state, cache, RemoteError, explain,
     signUp, signIn, signOut, deleteAccount, diagnose, restore, pull, pushNow, schedulePush, follow, unfollow, removeFollower, respond,
-    relation, sectionsOf, feed, recommendations, person: byHandle, startPolling, stopPolling,
+    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, person: byHandle, api, startPolling, stopPolling,
     setHooks: (h) => { hooks = { ...hooks, ...h }; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

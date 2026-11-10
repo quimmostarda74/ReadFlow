@@ -193,6 +193,7 @@
       perDay.set(k, (perDay.get(k) || 0) + x.durationSeconds);
     }
     for (const v of perDay.values()) s.maxDaySeconds = Math.max(s.maxDaySeconds, v);
+    s.totalPages += sumBonus(bonusPages(books, sessions));
     const days = activeDays(sessions);
     s.activeDaysCount = days.size;
     const st = computeStreaks(days);
@@ -225,6 +226,16 @@
     }
   }
 
+  /** Livros lidos na totalidade sem sessões (ou com poucas): as páginas em falta contam como lidas; o tempo não. */
+  function bonusPages(books, sessions) {
+    const per = new Map();
+    for (const s of sessions) per.set(s.bookId, (per.get(s.bookId) || 0) + pagesRead(s));
+    return books.filter((b) => b.status === 'finished' && b.totalPages > 0)
+      .map((b) => ({ bookId: b.id, date: b.finishedAt || b.addedAt || Date.now(), pages: Math.max(0, b.totalPages - (per.get(b.id) || 0)) }))
+      .filter((x) => x.pages > 0);
+  }
+  const sumBonus = (bonus, from = 0) => bonus.filter((x) => x.date >= from).reduce((a, x) => a + x.pages, 0);
+
   /* ---------- Estatísticas ---------- */
   function totals(sessions) {
     return sessions.reduce((t, s) => ({ seconds: t.seconds + s.durationSeconds, pages: t.pages + pagesRead(s), sessions: t.sessions + 1 }), { seconds: 0, pages: 0, sessions: 0 });
@@ -238,7 +249,7 @@
     for (const s of sessions) if (s.start < first) first = s.start;
     return Math.max(startOfMonth(first), addMonths(thisMonth, -35));
   }
-  function buckets(sessions, range, now = Date.now()) {
+  function buckets(sessions, range, now = Date.now(), bonus = []) {
     const byDay = range === 'week' || range === 'month';
     const out = [];
     let cursor = rangeStart(range, sessions, now);
@@ -246,6 +257,7 @@
       const next = byDay ? addDays(cursor, 1) : addMonths(cursor, 1);
       let sec = 0, pages = 0;
       for (const s of sessions) if (s.start >= cursor && s.start < next) { sec += s.durationSeconds; pages += pagesRead(s); }
+      for (const b of bonus) if (b.date >= cursor && b.date < next) pages += b.pages;
       out.push({ date: cursor, minutes: sec / 60, pages });
       cursor = next;
     }
@@ -268,7 +280,7 @@
     duration, clock, pace, timeText, shortDate, longDate, relativeDay, weekdayLetter, weekdayShort, monthShort,
     isDark, textOn, hashStr, spineHeight, spineWidth, pagesRead, pagesPerHour, bookProgress, bookSessions,
     activeDays, computeStreaks, tierName, tierColor, achTitle, achDetail, progressText,
-    snapshot, evaluate, ruleState, totals, rangeStart, buckets, bucketLabel, minutesByDay
+    snapshot, evaluate, ruleState, bonusPages, sumBonus, totals, rangeStart, buckets, bucketLabel, minutesByDay
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = RF.logic;
 })(typeof window !== 'undefined' ? window : globalThis);
