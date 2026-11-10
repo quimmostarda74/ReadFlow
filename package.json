@@ -1,6 +1,6 @@
 {
   "name": "readflow",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "ReadFlow: o Strava da leitura, para o computador",
   "main": "main.js",
   "author": "ReadFlow",
@@ -30,13 +30,14 @@
       "app/**/*",
       "build/icon.png"
     ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "quimmostarda74",
-        "repo": "readflow"
-      }
-    ],
+"publish": [
+  {
+    "provider": "github",
+    "owner": "quimmostarda74",
+    "repo": "readflow",
+    "releaseType": "release"
+  }
+],
     "win": {
       "target": [
         "nsis",
