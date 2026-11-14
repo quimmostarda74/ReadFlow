@@ -37,7 +37,7 @@
   /** O que um seguidor aprovado vê do meu perfil (pré-visualização local, com capas reais). */
   function myPublicProfile(S) {
     const st = S.state, p = st.settings.privacy, books = st.books;
-    const mk = (b) => item(b.title, b.author, b.recNote, { id: b.id, color: b.color, coverId: b.coverId, rating: p.reviews ? (b.rating || 0) : 0, review: p.reviews ? (b.notes || '').trim() : '' });
+    const mk = (b) => item(b.title, b.author, b.recNote, { id: b.id, color: b.color, coverId: b.coverId, spineId: b.spineId, pages: b.totalPages || 0, rating: p.reviews ? (b.rating || 0) : 0, review: p.reviews ? (b.notes || '').trim() : '' });
     const out = { name: st.settings.name || 'Leitor', id: st.settings.handleName ? `${st.settings.handleName}#${String(st.settings.handleNumber).padStart(6, '0')}` : '', photoId: st.settings.photoId, sections: {} };
     if (p.bio) out.sections.bio = st.settings.bio || '';
     if (p.reading) out.sections.reading = books.filter((b) => b.status === 'reading').map(mk);
@@ -57,7 +57,9 @@
     const mk = (b) => {
       const it = { title: b.title, author: b.author, note: b.recNote || '', color: b.color };
       if (p.reviews) { if (b.rating > 0) it.rating = b.rating; if (b.notes && b.notes.trim()) it.review = b.notes.trim().slice(0, 400); }
-      if (b.coverId && coverKeys && coverKeys.has(b.coverId)) it.ck = b.coverId;
+      it.pages = b.totalPages || 0;
+      if (b.coverId && coverKeys && coverKeys.has('c2-' + b.coverId)) it.ck = 'c2-' + b.coverId;
+      if (b.spineId && coverKeys && coverKeys.has('s2-' + b.spineId)) it.sk = 's2-' + b.spineId;
       return it;
     };
     const list = (pred) => books.filter(pred).slice(0, 300).map(mk);
@@ -76,7 +78,7 @@
   /** Converte as secções recebidas do servidor no formato do ecrã de perfil. `covers`: { ck: dataUrl } já descarregadas. */
   function fromServer(shared, covers) {
     const sec = {};
-    const mk = (arr) => (arr || []).map((b) => item(b.title, b.author, b.note, { color: b.color || hue(b.title), rating: b.rating || 0, review: b.review || '', ck: b.ck || '', coverData: (covers && b.ck && covers[b.ck]) || null }));
+    const mk = (arr) => (arr || []).map((b) => item(b.title, b.author, b.note, { color: b.color || hue(b.title), rating: b.rating || 0, review: b.review || '', ck: b.ck || '', sk: b.sk || '', pages: b.pages || 0, coverData: (covers && b.ck && covers[b.ck]) || null, spineData: (covers && b.sk && covers[b.sk]) || null }));
     if (shared.bio) sec.bio = shared.bio.text || '';
     if (shared.reading) sec.reading = mk(shared.reading);
     if (shared.finished) sec.finished = mk(shared.finished);

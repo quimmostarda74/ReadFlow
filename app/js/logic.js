@@ -138,14 +138,37 @@
       ['Dia de leitura', 'Dia inteiro', 'Maratona diária']],
     ['lunch', 'Hora de almoço', 'clock', '', (s) => s.lunchSessions, 'Sessões entre as 12h e as 14h: {n}', [1, 10, 30],
       ['Pausa para ler', 'Almoço literário', 'Rei do almoço']],
-    ['profile', 'Perfil', 'user', '', (s) => s.profileItems, 'Itens do perfil preenchidos (foto e descrição): {n}', [1, 2],
-      ['Cara conhecida', 'Perfil completo']],
+    ['profile', 'Perfil', 'user', '', (s) => s.profileItems, 'Passos do perfil concluídos (foto, descrição, nome, favorito, recomendação, conta online): {n}', [1, 2, 3, 4, 5, 6],
+      ['Cara conhecida', 'Perfil a tomar forma', 'Quase lá', 'Bem apresentado', 'Perfil completo', 'Cidadão do ReadFlow']],
     ['favorites', 'Favoritos', 'heart', '', (s) => s.favoriteBooks, 'Livros favoritos: {n}', [1, 5, 10],
       ['Primeiro favorito', 'Coração cheio', 'Cantinho dos favoritos']],
     ['recs', 'Recomendações', 'gift', '', (s) => s.recommendedBooks, 'Livros recomendados: {n}', [1, 5, 10],
       ['Primeira recomendação', 'Boca a boca', 'Divulgador de livros']]
   ];
-  const CATEGORIES = CAT_ROWS.map(([id, title, icon, unit, value, detailKey, tiers, names]) => ({ id, title, icon, unit, value, detailKey, tiers, names }));
+  const CATEGORIES = CAT_ROWS.map(([id, title, icon, unit, value, detailKey, tiers, names]) => ({ id, title, icon, unit, value, detailKey, tiers: [...tiers], names: [...names] }));
+  // Níveis extra: todas as categorias passam a ter 6 níveis (Bronze a Lenda). Acrescentam-se no fim, por isso os ids antigos não mudam.
+  const EXTEND = {
+    streak: [[730], ['Dois anos sem falhar']],
+    longSession: [[480, 720], ['Jornada completa', 'Sem dormir']],
+    early: [[200, 365], ['Relógio biológico', 'Todas as manhãs']],
+    night: [[200, 365], ['Insónia literária', 'Todas as noites']],
+    spines: [[100, 200], ['Arquivo de lombadas', 'Biblioteca em retrato']],
+    rated: [[100, 200], ['Crítico respeitado', 'Crítico lendário']],
+    notes: [[100, 250, 500], ['Cronista da leitura', 'Arquivista', 'Memória viva']],
+    photos: [[50, 100, 250], ['Repórter de leituras', 'Arquivo fotográfico', 'Galeria viva']],
+    covers: [[100, 200], ['Parede de capas', 'Catálogo vivo']],
+    shelves: [[15, 25], ['Arquiteto de estantes', 'Cidade dos livros']],
+    weekend: [[60, 100, 200], ['Sábados de leitura', 'Domingueiro', 'Eterno fim de semana']],
+    days: [[500, 1000], ['Quinhentos dias', 'Mil dias a ler']],
+    fast: [[120, 150, 200], ['Foguete', 'Velocidade da luz', 'Dobra espacial']],
+    thick: [[25, 50, 100], ['Colecionador de tijolos', 'Pedreiro literário', 'Construtor de catedrais']],
+    quick: [[10, 25, 50, 100], ['Raio literário', 'Tempestade de livros', 'Furacão', 'Mestre da velocidade']],
+    maxDay: [[8, 10, 12], ['Jornada de leitura', 'Dia sem fim', 'Sem tempo para mais nada']],
+    lunch: [[60, 100, 200], ['Almoço com capítulo', 'Dieta de livros', 'Lenda do almoço']],
+    favorites: [[25, 50, 100], ['Estante do coração', 'Meio cento de amores', 'Coração de biblioteca']],
+    recs: [[25, 50, 100], ['Influenciador de leitura', 'Livreiro de coração', 'Prescritor literário']]
+  };
+  for (const c of CATEGORIES) { const e = EXTEND[c.id]; if (e) { c.tiers.push(...e[0]); c.names.push(...e[1]); } }
   const catById = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]));
   const ACHIEVEMENTS = [];
   for (const c of CATEGORIES) {
@@ -171,7 +194,7 @@
       bigBooksFinished: books.filter((b) => b.status === 'finished' && b.totalPages >= 500).length,
       quickFinishes: books.filter((b) => b.status === 'finished' && b.totalPages >= 100 && b.startedAt && b.finishedAt && (b.finishedAt - b.startedAt) <= 3 * DAY).length,
       shelvesCount: shelves.length,
-      profileItems: (settings.photoId ? 1 : 0) + (settings.bio && settings.bio.trim() ? 1 : 0),
+      profileItems: (settings.photoId ? 1 : 0) + (settings.bio && settings.bio.trim() ? 1 : 0) + (settings.name && settings.name.trim() ? 1 : 0) + (books.some((b) => b.favorite) ? 1 : 0) + (books.some((b) => b.recommend) ? 1 : 0) + (settings.handleNumber ? 1 : 0),
       sessionsCount: sessions.length, bestStreak: 0, currentStreak: 0, longestSessionSeconds: 0,
       earlySessions: 0, lateSessions: 0, notedSessions: 0, sessionPhotos: 0, weekendSessions: 0, lunchSessions: 0,
       bestPace: 0, maxDaySeconds: 0, activeDaysCount: 0

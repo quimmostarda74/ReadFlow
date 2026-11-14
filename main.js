@@ -19,6 +19,13 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
+/** Notas da versão (a descrição que escreves na release do GitHub), sem etiquetas HTML. */
+function notesOf(info) {
+  const n = info && info.releaseNotes;
+  const text = typeof n === 'string' ? n : Array.isArray(n) ? n.map((x) => (x && x.note) || '').join('\n') : '';
+  return text.replace(/<[^>]*>/g, ' ').replace(/[ \t]+/g, ' ').trim().slice(0, 1500);
+}
+
 function sendStatus(status, extra) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updater:status', { status, ...(extra || {}) });
 }
@@ -28,12 +35,12 @@ function setupUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('checking-for-update', () => sendStatus('checking'));
-  autoUpdater.on('update-available', (info) => sendStatus('available', { version: info.version }));
+  autoUpdater.on('update-available', (info) => sendStatus('available', { version: info.version, notes: notesOf(info) }));
   autoUpdater.on('update-not-available', () => sendStatus('none'));
   autoUpdater.on('download-progress', (p) => sendStatus('downloading', { percent: Math.round(p.percent) }));
   autoUpdater.on('error', (err) => sendStatus('error', { message: String((err && err.message) || err) }));
   autoUpdater.on('update-downloaded', (info) => {
-    sendStatus('downloaded', { version: info.version });
+    sendStatus('downloaded', { version: info.version, notes: notesOf(info) });
     dialog.showMessageBox(mainWindow, {
       type: 'info', buttons: ['Reiniciar agora', 'Mais tarde'], defaultId: 0, cancelId: 1,
       message: 'Há uma nova versão do ReadFlow', detail: `A versão ${info.version} está pronta. Reinicia a app para atualizar. Os teus dados ficam guardados.`
@@ -45,6 +52,7 @@ function setupUpdater() {
 }
 
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('app:install-update', () => { if (autoUpdater && app.isPackaged) autoUpdater.quitAndInstall(); });
 ipcMain.handle('app:copy', (_event, text) => { try { clipboard.writeText(String(text).slice(0, 1000)); return true; } catch (e) { return false; } });
 ipcMain.handle('app:check-updates', async () => {
   if (!autoUpdater || !app.isPackaged) return { status: 'unavailable' };

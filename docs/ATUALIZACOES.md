@@ -51,3 +51,9 @@ Faltam os passos que só tu podes fazer, com a tua conta.
   um ficheiro no repositório que a app descarrega, para atualizar as sugestões sem nova versão.
 - **Sistema de amigos a sério:** o servidor é outra peça (ver `SISTEMA-DE-AMIGOS.md`); o GitHub só entrega
   as versões da app, não guarda os dados das pessoas.
+
+## Mostrar as novidades dentro da app
+- O separador **Atualizações** (menu da esquerda) mostra o histórico de versões, o botão **Procurar atualizações** e, quando há uma versão
+  descarregada, **Reiniciar e atualizar**. Aparece um ponto vermelho no menu até a pessoa o abrir depois de atualizar.
+- O histórico está em `app/js/changelog.js`: a cada versão acrescenta-se uma entrada no topo (com o texto nos 4 idiomas) e muda-se `current`.
+- A descrição que escreves na **release do GitHub** aparece, como «Notas da nova versão», a quem tem uma versão antiga e ainda não instalou.

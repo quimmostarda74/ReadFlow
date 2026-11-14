@@ -30,7 +30,7 @@ const { createMock } = require('./mock-supabase');
     }
   };
   // 1) sem ligação configurada e 2) com ligação mas sem conta
-  sweep(['home', 'library', 'stats', 'achievements', 'rankings', 'recommended', 'friends', 'profile', 'book:' + b.id]);
+  sweep(['home', 'library', 'stats', 'achievements', 'rankings', 'updates', 'recommended', 'friends', 'profile', 'book:' + b.id]);
   RF.config.supabaseUrl = 'https://mock.supabase.co'; RF.config.supabaseKey = M.key;
   S.state.settings.lang = 'pt'; RF.app.applyTheme();
   // 3) com conta e amigos

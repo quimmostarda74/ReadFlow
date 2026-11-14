@@ -7,7 +7,7 @@
   const { h, icon } = UI;
 
   const NAV = [['home', 'Início', 'home'], ['library', 'Estante', 'book'], ['stats', 'Estatísticas', 'chart'], ['achievements', 'Conquistas', 'trophy'],
-    ['rankings', 'Rankings', 'crown'], ['recommended', 'Recomendados', 'gift'], ['friends', 'Amigos', 'users'], ['profile', 'Perfil', 'user']];
+    ['rankings', 'Rankings', 'crown'], ['recommended', 'Recomendados', 'gift'], ['friends', 'Amigos', 'users'], ['profile', 'Perfil', 'user'], ['updates', 'Atualizações', 'download']];
   let route = 'home';
   let sideClock = null;
 
@@ -53,7 +53,7 @@
 
     const side = h('aside', { class: 'sidebar' },
       h('div', { class: 'brand' }, h('img', { src: 'icon.png', alt: '' }), h('span', { class: 'serif' }, 'ReadFlow')),
-      h('nav', null, ...NAV.map(([key, label, ic]) => h('button', { class: 'nav-btn' + (base === key ? ' on' : ''), onClick: () => app.go(key) }, icon(ic, 18), key === 'library' ? app.libName() : t(label)))),
+      h('nav', null, ...NAV.map(([key, label, ic]) => h('button', { class: 'nav-btn' + (base === key ? ' on' : ''), onClick: () => app.go(key) }, icon(ic, 18), key === 'library' ? app.libName() : t(label), key === 'updates' && st.settings.lastSeenVersion !== RF.changelog.current ? h('span', { class: 'nav-dot' }) : null))),
       h('div', { class: 'grow' }),
       banner,
       sess.active ? null : h('button', { class: 'btn primary block', onClick: () => (st.books.length ? RF.sessionUI.openStart() : RF.dialogs.openBookForm()) },
@@ -74,7 +74,7 @@
       return;
     }
     app.applyTheme();
-    if (root.readflowApp && root.readflowApp.onUpdateStatus) root.readflowApp.onUpdateStatus((p) => { RF.updateInfo = p; const el = document.getElementById('update-status'); if (el) el.textContent = RF.updateText(p); });
+    if (root.readflowApp && root.readflowApp.onUpdateStatus) root.readflowApp.onUpdateStatus((p) => { RF.updateInfo = p; const el = document.getElementById('update-status'); if (el) el.textContent = RF.updateText(p); if (route === 'updates') render(); });
     RF.session.restore(active);
     await RF.shelf.syncCosmetics(true);
     RF.remote.setHooks({
@@ -87,6 +87,14 @@
     });
     await RF.remote.restore();
     render();
+    // Depois de uma atualização: avisa uma vez (clicar leva ao separador «Atualizações»).
+    const sv = S.state.settings;
+    if (sv.toastedVersion !== RF.changelog.current) {
+      const upgraded = sv.lastSeenVersion || S.state.books.length || S.state.sessions.length;
+      if (upgraded && sv.lastSeenVersion !== RF.changelog.current) UI.toastAchievements([{ type: 'info', name: t('Atualizado para a versão {v}. Vê as novidades.', { v: RF.changelog.current }), go: 'updates' }]);
+      if (!upgraded) sv.lastSeenVersion = RF.changelog.current;
+      sv.toastedVersion = RF.changelog.current; await S.saveSettings();
+    }
     if (RF.session.active) RF.sessionUI.openOverlay();
 
     let timer = null;

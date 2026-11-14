@@ -10,7 +10,7 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   await S.loadSample(); await RF.app.checkAchievements(true);
   ok(`dados de exemplo: ${S.state.books.length} livros, ${S.state.sessions.length} sessões, ${S.state.unlocked.size} conquistas`);
 
-  const routes = ['home', 'library', 'stats', 'achievements', 'rankings', 'recommended', 'friends', 'profile'];
+  const routes = ['home', 'library', 'stats', 'achievements', 'rankings', 'updates', 'recommended', 'friends', 'profile'];
   for (const lang of ['pt', 'en', 'ru', 'de']) {
     S.state.settings.lang = lang; RF.app.applyTheme();
     for (const theme of ['classic', 'light', 'dark', 'cream']) {
@@ -232,11 +232,11 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   // ===== Versão 1.4 =====
   roots[1].children = [];
   const SOCm = RF.social, Lg = RF.logic;
-  const clickBtn = (root_, label) => { const b = walk(root_).find((n) => n.tagName === 'BUTTON' && text(n).trim() === label); if (!b) throw new Error('botão não encontrado: ' + label); b.listeners.click[0]({ target: b }); return b; };
+  const clickBtn = (root_, label) => { const b = walk(root_).find((n) => n.tagName === 'BUTTON' && text(n).trim() === label); if (!b) throw new Error('botão não encontrado: ' + label); b.listeners.click[0]({ target: b, stopPropagation() {} }); return b; };
   // (1) notas, avaliações e capas que os amigos veem
-  M.db.shared.set(`${mariaId}|reading`, { user_id: mariaId, section: 'reading', payload: [{ title: 'Rd 0', author: 'Z', note: '', color: '#8C2F39', rating: 4, review: 'Gostei muito', ck: 'cov-1' }] });
+  M.db.shared.set(`${mariaId}|reading`, { user_id: mariaId, section: 'reading', payload: [{ title: 'Rd 0', author: 'Z', note: '', color: '#8C2F39', rating: 4, review: 'Gostei muito', ck: 'cov-1', sk: 'sp-1', pages: 280 }] });
   M.db.shared.set(`${mariaId}|recommendations`, { user_id: mariaId, section: 'recommendations', payload: [{ title: 'Rec M', author: 'Q', note: 'Good', rating: 5, ck: 'cov-2' }, { title: 'Rec N', author: 'W', note: '', review: 'Long review text here', rating: 3 }] });
-  M.seedCover(mariaId, 'cov-1', 'data:image/jpeg;base64,/9j/AAAA'); M.seedCover(mariaId, 'cov-2', 'data:image/jpeg;base64,/9j/BBBB');
+  M.seedCover(mariaId, 'cov-1', 'data:image/jpeg;base64,/9j/AAAA'); M.seedCover(mariaId, 'sp-1', 'data:image/jpeg;base64,/9j/SPINE'); M.seedCover(mariaId, 'cov-2', 'data:image/jpeg;base64,/9j/BBBB');
   await R.pull(true); await sleep(80);
   const smr = R.sectionsOf('maria#204819');
   if (smr.reading[0].rating !== 4 || smr.reading[0].review !== 'Gostei muito') throw new Error('nota e avaliação do amigo não chegaram');
@@ -297,19 +297,20 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   ok('Lombadas: todos os livros com a lombada visível (sem capas para a frente)');
 
   // (5) capas enviadas ao servidor, limpeza e servidor sem a tabela de capas; notas e avaliações com privacidade
-  const cid = await S.addImage(new Blob(['img']));
-  nb2.coverId = cid; nb2.favorite = true; nb2.rating = 5; nb2.notes = 'minha nota'; await S.saveBook(nb2);
+  const cid = await S.addImage(new Blob(['img'])), sid = await S.addImage(new Blob(['sp']));
+  nb2.coverId = cid; nb2.spineId = sid; nb2.favorite = true; nb2.rating = 5; nb2.notes = 'minha nota'; await S.saveBook(nb2);
   R.api.thumbProvider = async () => 'data:image/jpeg;base64,/9j/CCCC';
   await R.pushNow(true);
   const favPayload = M.db.shared.get(`${meId}|favorites`).payload.find((x) => x.title === 'Livro Req');
-  if (!M.db.covers.has(`${meId}|${cid}`) || favPayload.ck !== cid) throw new Error('capa não enviada');
+  if (!M.db.covers.has(`${meId}|c2-${cid}`) || favPayload.ck !== 'c2-' + cid) throw new Error('capa não enviada');
+  if (!M.db.covers.has(`${meId}|s2-${sid}`) || favPayload.sk !== 's2-' + sid || favPayload.pages !== 321) throw new Error('lombada/páginas não enviadas');
   if (favPayload.rating !== 5 || favPayload.review !== 'minha nota') throw new Error('nota e avaliação não enviadas');
   S.state.settings.privacy.reviews = false; await R.pushNow(true);
   const fp2 = M.db.shared.get(`${meId}|favorites`).payload.find((x) => x.title === 'Livro Req');
   if ('rating' in fp2 || 'review' in fp2) throw new Error('com «Notas e avaliações» desligado não devia enviar');
   S.state.settings.privacy.reviews = true;
   nb2.coverId = null; await S.saveBook(nb2); await R.pushNow(true);
-  if (M.db.covers.has(`${meId}|${cid}`)) throw new Error('capa antiga devia ser apagada do servidor');
+  if (M.db.covers.has(`${meId}|c2-${cid}`) || !M.db.covers.has(`${meId}|s2-${sid}`)) throw new Error('só a capa antiga devia ser apagada do servidor');
   M.flags.noCovers = true; nb2.coverId = cid; await S.saveBook(nb2); S.state.settings.bio = 'bio nova'; await R.pushNow(true); M.flags.noCovers = false;
   if (M.db.shared.get(`${meId}|bio`).payload.text !== 'bio nova') throw new Error('sem a tabela de capas o resto do perfil devia sincronizar');
   ok('capas enviadas e limpas; notas/avaliações respeitam a privacidade; sem a tabela de capas nada se estraga');
@@ -342,6 +343,50 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   RF.app.go('achievements'); if (!walk(roots[0]).some((n) => n.className.split(' ').includes('medal-btn') && /Horas de leitura no total/.test(n.attrs.title || ''))) throw new Error('medalhas sem a dica de como desbloquear');
   RF.app.go('friend:maria#204819'); if (!walk(roots[0]).some((n) => n.className.split(' ').includes('medal-btn') && /Horas de leitura|Livros terminados/.test(n.attrs.title || ''))) throw new Error('medalhas do perfil do amigo sem a dica');
   ok('copiar o ID funciona; as medalhas (também no perfil de um amigo) mostram o que foi preciso fazer');
+
+
+  // ===== Versão 1.5 =====
+  roots[1].children = [];
+  // (1) conquistas: 25 categorias × 6 níveis, nomes únicos, perfil com 6 passos
+  if (Lg.CATEGORIES.some((c) => c.tiers.length !== 6 || c.names.length !== 6) || Lg.ACHIEVEMENTS.length !== 150) throw new Error('conquistas: ' + Lg.ACHIEVEMENTS.length);
+  if (new Set(Lg.ACHIEVEMENTS.map((a) => a.title)).size !== 150) throw new Error('nomes de conquistas repetidos');
+  const profFull = Lg.snapshot([{ id: 'a', favorite: true, recommend: true, status: 'reading' }], [], [], { photoId: 'p', bio: 'x', name: 'N', handleNumber: 123456 });
+  if (profFull.profileItems !== 6) throw new Error('perfil completo devia ter 6 passos: ' + profFull.profileItems);
+  RF.app.go('achievements');
+  const achGrid = walk(roots[0]).find((n) => n.className.split(' ').includes('ach-grid'));
+  if (!achGrid || achGrid.children.length !== 25 || achGrid.children.some((c) => walk(c).filter((n) => n.className.split(' ').includes('medal-btn')).length !== 6 || !walk(c).some((n) => n.className.split(' ').includes('ach-foot')))) throw new Error('cartões de conquistas devem ter todos 6 medalhas e o mesmo rodapé');
+  ok('150 conquistas: todas as categorias com 6 níveis; todos os cartões com o mesmo número de medalhas');
+  // (2) livro em 3D no perfil de um amigo
+  RF.app.go('friend:maria#204819'); await sleep(80);
+  const th = walk(roots[0]).find((n) => n.className.split(' ').includes('thumb')); if (!th) throw new Error('sem miniaturas');
+  th.listeners.click[0](); await sleep(150);
+  const m3 = roots[1];
+  if (walk(m3).filter((n) => n.className.split(' ').includes('b3d-face')).length !== 6) throw new Error('livro 3D devia ter 6 faces');
+  if (!walk(m3).some((n) => n.className.split(' ').includes('b3d-front') && walk(n).some((c) => c.className.split(' ').includes('cover') && /AAAA/.test(String(c.style.backgroundImage || ''))))) throw new Error('frente do livro 3D sem a capa do amigo');
+  if (!walk(m3).some((n) => n.className.split(' ').includes('b3d-spine') && walk(n).some((c) => /SPINE/.test(String(c.style.backgroundImage || ''))))) throw new Error('lombada do livro 3D sem a foto da lombada');
+  const backTxt = text(walk(m3).find((n) => n.className.split(' ').includes('b3d-back')));
+  if (!/Anotação/.test(backTxt) || !/Gostei muito/.test(backTxt)) throw new Error('verso do livro 3D sem a anotação: ' + backTxt);
+  const sc = walk(m3).find((n) => n.className.split(' ').includes('b3d-scene')), ob = walk(m3).find((n) => n.className.split(' ').includes('b3d'));
+  const t0 = ob.style.transform;
+  sc.listeners.pointerdown[0]({ clientX: 100, clientY: 100, pointerId: 1 }); sc.listeners.pointermove[0]({ clientX: 180, clientY: 100 }); sc.listeners.pointerup[0]();
+  if (ob.style.transform === t0 || !/rotateY\(76deg\)/.test(ob.style.transform)) throw new Error('arrastar com o rato devia rodar o livro: ' + ob.style.transform);
+  clickBtn(m3, 'Verso'); if (!/rotateY\(180deg\)/.test(ob.style.transform)) throw new Error('botão Verso'); clickBtn(m3, 'Lombada'); if (!/rotateY\(90deg\)/.test(ob.style.transform)) throw new Error('botão Lombada');
+  clickBtn(m3, 'Capa'); if (!/rotateY\(28deg\)/.test(ob.style.transform)) throw new Error('botão Capa');
+  roots[1].children = [];
+  RF.app.go('friendlist:maria#204819:recs'); await sleep(60);
+  walk(roots[0]).find((n) => n.className.split(' ').includes('full-item')).listeners.click[0](); await sleep(80);
+  if (walk(roots[1]).filter((n) => n.className.split(' ').includes('b3d-face')).length !== 6) throw new Error('a lista completa também devia abrir o livro em 3D');
+  roots[1].children = [];
+  ok('livro em 3D: capa, lombada (descarregada ao abrir), anotação no verso, rodar com o rato e botões Capa/Lombada/Verso');
+  // (3) separador Atualizações
+  S.state.settings.lastSeenVersion = ''; RF.app.go('home');
+  if (!walk(roots[0]).some((n) => n.className.split(' ').includes('nav-dot'))) throw new Error('devia haver um ponto de novidade no menu');
+  RF.app.go('updates'); const ut = text(roots[0]);
+  if (!ut.includes(RF.changelog.current) || !/Livros em 3D/.test(ut) || !/Versão atual/.test(ut)) throw new Error('separador Atualizações: ' + ut.slice(0, 300));
+  RF.app.go('home'); if (walk(roots[0]).some((n) => n.className.split(' ').includes('nav-dot'))) throw new Error('o ponto devia desaparecer depois de abrir');
+  for (const [lg, word] of [['en', 'Books in 3D'], ['ru', 'Книги в 3D'], ['de', 'Bücher in 3D']]) { S.state.settings.lang = lg; RF.app.applyTheme(); RF.app.go('updates'); if (!text(roots[0]).includes(word)) throw new Error('novidades em ' + lg); }
+  S.state.settings.lang = 'pt'; RF.app.applyTheme();
+  ok('«Atualizações»: histórico de versões nos 4 idiomas e ponto de novidade no menu');
 
   // Perfil visto por um seguidor: 5 miniaturas + "Ver mais", estatísticas e atividade
   for (let i = 0; i < 8; i++) await S.saveBook(S.newBook({ title: 'Fav ' + i, author: 'A', status: 'finished', favorite: true, totalPages: 100 }));

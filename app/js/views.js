@@ -5,7 +5,7 @@
   const L = RF.logic, S = RF.store, UI = RF.ui, SOC = RF.social;
   const t = RF.i18n.t;
   const { h, icon } = UI;
-  const APP_VERSION = '1.4.0';
+  const APP_VERSION = RF.changelog.current;
   const MAX_SHOWN = 5;
 
   let libQuery = '', statsRange = 'week', statsMetric = 'time', achFilter = 'all', recTab = 'foryou', recGenre = '', recLang = '', recMore = false, friendsTab = 'feed', homeFeed = 'all';
@@ -289,8 +289,8 @@
         return h('div', { class: 'card' },
           h('div', { class: 'row gap center' }, icon(cat.icon, 18, { cls: 'accent' }), h('h3', { class: 'serif grow' }, t(cat.title)), h('span', { class: 'muted small' }, `${defs.filter((a) => st.unlocked.has(a.id)).length}/${defs.length}`)),
           h('div', { class: 'medals' }, ...defs.map((a) => h('button', { class: 'medal-btn', title: medalTip(a), onClick: () => detail(a) }, UI.medal(a, st.unlocked.has(a.id), 58), h('span', { class: 'medal-name' }, L.tierName(a.tier))))),
-          next ? h('div', { class: 'stack tight' }, h('div', { class: 'row between small' }, h('strong', null, t('Próxima: {name}', { name: L.achTitle(next) })), h('span', { class: 'muted' }, L.progressText(cat, value, next.target))), UI.progressBar(value / next.target, L.tierColor(next.tier)))
-            : h('p', { class: 'accent strong small' }, t('Categoria completa')));
+          next ? h('div', { class: 'stack tight ach-foot' }, h('div', { class: 'row between small' }, h('strong', null, t('Próxima: {name}', { name: L.achTitle(next) })), h('span', { class: 'muted' }, L.progressText(cat, value, next.target))), UI.progressBar(value / next.target, L.tierColor(next.tier)))
+            : h('p', { class: 'accent strong small ach-foot' }, t('Categoria completa')));
       })));
   }
 
@@ -305,13 +305,24 @@
       await S.saveBook(b); await RF.app.checkAchievements(); RF.app.refresh();
     } else RF.dialogs.openBookForm(null, { ...base, ...(cover ? { coverBlob: cover } : {}) });
   }
+  /** Abre o livro em 3D. Se for de um amigo, descarrega primeiro a capa e a lombada em melhor qualidade. */
+  async function view3D(it, handle) {
+    let item = it;
+    if (handle && ((it.ck && !it.coverData) || (it.sk && !it.spineData))) {
+      const got = await RF.remote.loadKeys(handle, [it.ck, it.sk]);
+      item = { ...it, coverData: it.coverData || got[it.ck] || null, spineData: it.spineData || got[it.sk] || null };
+    }
+    UI.openBook3D(item);
+  }
   const haveBook = (title, author) => S.state.books.some((b) => (b.title + '|' + b.author).toLowerCase() === (title + '|' + author).toLowerCase());
   const TAGS = { top: 'Mais vendido', hot: 'Em alta', new: 'Novidade' };
 
   function recCard(it, extra) {
     const fake = { id: it.title + it.author, title: it.title, color: (L.GENRES[it.genre] || [])[1] || '#2F4858', coverId: null, coverData: it.coverData || null };
     const have = haveBook(it.title, it.author);
-    return h('div', { class: 'card rec-card' }, h('div', { class: 'row gap' }, UI.coverEl(fake, 62),
+    const cv = UI.coverEl(fake, 62);
+    if (it.on3d) { cv.classList.add('link'); cv.title = t('Ver em 3D'); cv.addEventListener('click', it.on3d); }
+    return h('div', { class: 'card rec-card' }, h('div', { class: 'row gap' }, cv,
       h('div', { class: 'grow stack tight' }, h('div', { class: 'strong serif' }, it.title), h('div', { class: 'muted small' }, it.author),
         h('div', { class: 'row gap wrap center' }, it.tag ? h('span', { class: 'chip hot-chip' }, t(TAGS[it.tag])) : null, it.lang ? h('span', { class: 'chip' }, it.lang === 'pt' ? t('Português') : t('Inglês')) : null,
           it.genre ? h('span', { class: 'chip' }, t((L.GENRES[it.genre] || [''])[0])) : null, it.pages ? h('span', { class: 'muted tiny' }, t('~{n} págs', { n: it.pages })) : null), extra || null)),
@@ -341,7 +352,7 @@
           : emptyCard('gift', t('Já tens todas as sugestões deste género'), t('Experimenta outro género.')));
     } else if (recTab === 'friends') {
       const items = RF.remote.signedIn() ? RF.remote.recommendations() : [];
-      body = items.length ? h('div', { class: 'rec-grid' }, ...items.map((r) => recCard({ title: r.title, author: r.author, coverData: r.coverData },
+      body = items.length ? h('div', { class: 'rec-grid' }, ...items.map((r) => recCard({ title: r.title, author: r.author, coverData: r.coverData, on3d: () => view3D({ title: r.title, author: r.author, note: r.note, review: r.review, rating: r.rating, ck: r.ck, sk: r.sk, pages: r.pages, color: SOC.hue(r.title), coverData: r.coverData, spineData: r.spineData }, r.u.id) },
         h('div', { class: 'stack tight rec-extra' },
           h('div', { class: 'row gap center small link', onClick: () => RF.app.go('friend:' + r.u.id) }, UI.avatar(22, { name: r.u.name, color: r.u.color, photo: r.u.avatar }), h('span', null, t('{name} recomenda', { name: r.u.name })), r.rating > 0 ? UI.starsStatic(r.rating, 13) : null),
           h('div', { class: 'rec-note' }, r.note ? '“' + r.note + '”' : (r.review || '—'))))))
@@ -455,7 +466,7 @@
 
   /* ---------- Perfil público (de um amigo ou o meu em pré-visualização) ---------- */
   const KIND_TITLES = { reading: 'A ler agora', favorites: 'Favoritos', finished: 'Livros lidos', recs: 'Recomendações', activity: 'Atividade' };
-  const thumb = (it, withNote) => h('div', { class: 'thumb', title: it.title + (it.author ? ' — ' + it.author : '') }, UI.coverEl(it, 76), h('span', { class: 'small strong clip2' }, it.title),
+  const thumb = (it, withNote, ctx) => h('div', { class: 'thumb link', title: it.title + (it.author ? ' — ' + it.author : ''), onClick: () => ctx && ctx.onBook && ctx.onBook(it) }, UI.coverEl(it, 76), h('span', { class: 'small strong clip2' }, it.title),
     it.rating > 0 ? UI.starsStatic(it.rating, 12) : null,
     (withNote && it.note) ? h('span', { class: 'muted tiny clip2' }, '“' + it.note + '”') : (it.review ? h('span', { class: 'muted tiny clip2' }, it.review) : null));
   const activityLine = (a) => h('div', { class: 'card flat stack tight session-card' }, h('div', { class: 'row between center' }, h('span', { class: 'strong serif clip' }, a.book || t('Livro removido')), h('span', { class: 'muted small' }, agoFromMs(a.when))),
@@ -468,7 +479,7 @@
       if (items === undefined) return lockedCard(title, ic);
       return h('div', { class: 'card stack' }, h('div', { class: 'row between center' }, h('h3', { class: 'row gap center' }, icon(ic, 16), title, h('span', { class: 'count' }, String(items.length))),
         items.length > MAX_SHOWN ? h('button', { class: 'btn small-btn', onClick: () => ctx.onMore(key) }, t('Ver mais')) : null),
-        items.length ? h('div', { class: 'thumb-row' }, ...items.slice(0, MAX_SHOWN).map((it) => thumb(it, key === 'recs'))) : h('span', { class: 'muted small' }, '—'));
+        items.length ? h('div', { class: 'thumb-row' }, ...items.slice(0, MAX_SHOWN).map((it) => thumb(it, key === 'recs', ctx))) : h('span', { class: 'muted small' }, '—'));
     };
     const st = sec.stats;
     return h('div', { class: 'stack' },
@@ -485,14 +496,14 @@
   }
 
   /** Lista completa (miniaturas de todos os livros ou todas as atividades). */
-  function listView(p, kind, onBack) {
+  function listView(p, kind, onBack, onBook) {
     const items = p.sections[kind] || [];
     return h('div', { class: 'stack' }, h('button', { class: 'btn ghost back', onClick: onBack }, icon('back', 18), t('Voltar')),
       h('div', { class: 'row gap center' }, UI.avatar(40, { name: p.name, color: p.color, photo: p.photo }), h('div', null, h('h2', { class: 'serif' }, t(KIND_TITLES[kind])), h('div', { class: 'muted small' }, `${p.name} · ${items.length}`))),
       kind === 'activity' ? h('div', { class: 'stack' }, ...items.map(activityLine))
-        : h('div', { class: 'full-list' }, ...items.map((it) => h('div', { class: 'full-item', title: it.title }, UI.coverEl(it, 96), h('div', { class: 'strong small clip2' }, it.title), h('div', { class: 'muted tiny clip' }, it.author),
+        : h('div', { class: 'full-list' }, ...items.map((it) => h('div', { class: 'full-item link', title: it.title, onClick: () => onBook && onBook(it) }, UI.coverEl(it, 96), h('div', { class: 'strong small clip2' }, it.title), h('div', { class: 'muted tiny clip' }, it.author),
           it.rating > 0 ? UI.starsStatic(it.rating, 12) : null, kind === 'recs' && it.note ? h('div', { class: 'muted tiny clip2' }, '“' + it.note + '”') : null, it.review ? h('div', { class: 'muted tiny clip3' }, it.review) : null,
-          p.canAdd ? (haveBook(it.title, it.author) ? h('span', { class: 'muted tiny' }, t('Já está na tua biblioteca')) : h('button', { class: 'btn small-btn', onClick: () => addToWishlist(it) }, icon('plus', 12), t('Quero ler'))) : null))));
+          p.canAdd ? (haveBook(it.title, it.author) ? h('span', { class: 'muted tiny' }, t('Já está na tua biblioteca')) : h('button', { class: 'btn small-btn', onClick: (e) => { e.stopPropagation(); addToWishlist(it); } }, icon('plus', 12), t('Quero ler'))) : null))));
   }
 
   const remotePublic = (f) => ({ name: f.name, id: f.id, color: f.color, photo: f.avatar, sections: RF.remote.sectionsOf(f.id) || {}, canAdd: true });
@@ -501,7 +512,7 @@
     mine.photo = S.imgUrl(mine.photoId);
     UI.openModal((api) => {
       const body = h('div', { class: 'stack' });
-      const show = (kind) => body.replaceChildren(kind ? listView(mine, kind, () => show(null)) : publicView(mine, { onMore: show }));
+      const show = (kind) => body.replaceChildren(kind ? listView(mine, kind, () => show(null), (it) => view3D(it, null)) : publicView(mine, { onMore: show, onBook: (it) => view3D(it, null) }));
       show(null);
       return h('div', { class: 'dialog wide' }, UI.modalHeader(t('Assim te veem os teus seguidores'), api), body, h('div', { class: 'row end' }, h('button', { class: 'btn primary', onClick: () => api.close() }, t('Fechar'))));
     }, { wide: true });
@@ -521,14 +532,14 @@
           : h('button', { class: 'btn primary', onClick: () => act(() => R.follow(id)) }, icon('userPlus', 16), t('Seguir'))));
     }
     RF.remote.loadCovers(id).then((n) => { if (n) RF.app.refresh(); }).catch(() => {});
-    return h('div', { class: 'page narrow' }, back, publicView(remotePublic(person), { onMore: (kind) => RF.app.go('friendlist:' + id + ':' + kind) }),
+    return h('div', { class: 'page narrow' }, back, publicView(remotePublic(person), { onMore: (kind) => RF.app.go('friendlist:' + id + ':' + kind), onBook: (it) => view3D(it, id) }),
       h('div', { class: 'row end' }, h('button', { class: 'btn danger-text', onClick: async () => { await act(() => R.unfollow(id)); RF.app.go('friends'); } }, t('Deixar de seguir'))));
   }
   function friendListView(id, kind) {
     const R = RF.remote, person = R.person(id);
     if (!R.signedIn() || !person || R.relation(id).iFollow !== 'accepted') { setTimeout(() => RF.app.go('friend:' + id), 0); return h('div'); }
     RF.remote.loadCovers(id, [kind === 'recs' ? 'recommendations' : kind]).then((n) => { if (n) RF.app.refresh(); }).catch(() => {});
-    return h('div', { class: 'page narrow' }, listView(remotePublic(person), kind, () => RF.app.go('friend:' + id)));
+    return h('div', { class: 'page narrow' }, listView(remotePublic(person), kind, () => RF.app.go('friend:' + id), (it) => view3D(it, id)));
   }
 
   /* ---------- Rankings entre amigos ---------- */
@@ -561,6 +572,26 @@
       people.length < 2 ? h('div', { class: 'note' }, icon('users', 16), t('Segue amigos e espera que aceitem para veres como te comparas.')) : null,
       h('div', { class: 'rank-grid' }, ...boards.map(board)),
       missing.length ? h('p', { class: 'muted small' }, t('Sem estatísticas partilhadas: {names}.', { names: missing.join(', ') })) : null);
+  }
+
+  /* ---------- Atualizações ---------- */
+  function updates() {
+    const CL = RF.changelog, cur = CL.current, s = S.state.settings, lang = RF.i18n.getLang(), info = RF.updateInfo || null;
+    if (s.lastSeenVersion !== cur) { s.lastSeenVersion = cur; S.saveSettings(); }
+    const kinds = { new: 'Novo', imp: 'Melhorado', fix: 'Corrigido' };
+    const monthYear = (d) => { const p = d.split('-').map(Number); return new Date(p[0], p[1] - 1, 1).toLocaleDateString(RF.i18n.locale(), { month: 'long', year: 'numeric' }); };
+    const upd = h('span', { id: 'update-status', class: 'muted small' }, root.readflowApp ? updateText(info) : t('Disponível na versão instalada.'));
+    const pending = info && ['available', 'downloading', 'downloaded'].includes(info.status);
+    return h('div', { class: 'page narrow' }, pageHead(t('Atualizações'), t('O que há de novo em cada versão.')),
+      h('div', { class: 'card stack' },
+        h('div', { class: 'row between center wrap' }, h('div', { class: 'stack tight' }, h('div', null, t('Versão atual'), ' ', h('strong', null, cur)), upd),
+          h('button', { class: 'btn', onClick: async () => { if (root.readflowApp) { const r = await root.readflowApp.checkUpdates(); if (r && r.status === 'unavailable') upd.textContent = t('Disponível na versão instalada.'); } } }, icon('download', 16), t('Procurar atualizações'))),
+        info && info.status === 'downloaded' ? h('div', { class: 'note' }, icon('download', 16), h('span', { class: 'grow' }, t('Versão {v} pronta. Reinicia a app para atualizar.', { v: info.version || '' })),
+          h('button', { class: 'btn primary small-btn', onClick: () => root.readflowApp && root.readflowApp.installUpdate && root.readflowApp.installUpdate() }, t('Reiniciar e atualizar'))) : null,
+        pending && info.notes ? h('div', { class: 'card flat stack tight' }, h('div', { class: 'strong small' }, t('Notas da nova versão')), h('p', { class: 'muted small pre-line' }, info.notes)) : null),
+      ...CL.entries.map((e) => h('div', { class: 'card stack' }, h('div', { class: 'row between center wrap' }, h('h2', { class: 'serif' }, 'ReadFlow ' + e.v),
+        h('div', { class: 'row gap center' }, e.v === cur ? h('span', { class: 'chip' }, t('Versão atual')) : null, h('span', { class: 'muted small' }, monthYear(e.date)))),
+        h('div', { class: 'stack' }, ...e.items.map((it) => h('div', { class: 'cl-item' }, h('span', { class: 'chip cl-' + it.k }, t(kinds[it.k])), h('span', { class: 'grow' }, it[lang] || it.pt)))))));
   }
 
   /* ---------- Perfil ---------- */
@@ -635,5 +666,5 @@
   }
 
   RF.updateText = updateText;
-  RF.views = { home, library, bookView, stats, achievements, rankings, recommended, friends, friendView, friendListView, profile };
+  RF.views = { home, library, bookView, stats, achievements, rankings, updates, recommended, friends, friendView, friendListView, profile };
 })(typeof window !== 'undefined' ? window : globalThis);

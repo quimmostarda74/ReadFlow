@@ -11,15 +11,16 @@
 - **Atividade dos amigos** no Início (cada sessão mostra as conquistas que desbloqueou) e **recomendações dos amigos**.
 - **Perfil dos outros:** clicar no nome ou na foto. Sem aprovação só se vê o cartão e a opção de seguir.
 - **Capas, notas e avaliações:** um seguidor aprovado vê a imagem da capa de cada livro (miniatura), a avaliação em estrelas e a nota do livro, se estiverem ligadas.
+- **Livro em 3D:** ao clicar num livro no perfil de alguém, abre-se em 3D (capa, lombada e, no verso, a anotação da pessoa); arrasta com o rato para rodar.
 - **Rankings:** tempo de leitura, páginas, livros, ritmo e sequência, com top 3 e classificação, por semana, mês e total, entre ti e quem segues (e partilha estatísticas).
 - **«Quero ler» a partir de um amigo:** leva a capa dele para a tua prateleira e pede os campos obrigatórios que faltem.
 
 ## O que vai para o servidor
 Só o que a pessoa liga em Privacidade:
 nome a mostrar, uma miniatura da foto de perfil (128 px), a descrição, listas de livros (título, autor, nota de recomendação, cor,
-e, se «Notas e avaliações dos livros» estiver ligado, a avaliação em estrelas e a nota do livro), miniaturas das capas (96x144, tabela `covers`),
+e, se «Notas e avaliações dos livros» estiver ligado, a avaliação em estrelas e a nota do livro), miniaturas das capas e das lombadas (tabela `covers`; servem o livro em 3D),
 ids das conquistas, as últimas 60 atividades (livro, minutos, páginas, quando, conquistas) e totais de estatísticas (também por semana e mês).
-**Nunca saem do computador:** fotos das lombadas, notas das sessões, fotos das sessões, metas, e secções desligadas.
+**Nunca saem do computador:** notas das sessões, fotos das sessões, metas, e secções desligadas.
 Ao desligar uma secção, ela é **apagada** do servidor; as miniaturas das capas que deixam de ser partilhadas também.
 **Estatísticas:** livros lidos na totalidade contam as páginas (o tempo só conta quando há sessões).
 

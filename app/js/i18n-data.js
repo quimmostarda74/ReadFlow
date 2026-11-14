@@ -3703,6 +3703,402 @@
 "you",
 "ты",
 "du"
+],
+[
+"Almoço com capítulo",
+"Lunch with a chapter",
+"Обед с главой",
+"Mittagessen mit Kapitel"
+],
+[
+"Anotação",
+"Annotation",
+"Заметка",
+"Anmerkung"
+],
+[
+"Arquiteto de estantes",
+"Shelf architect",
+"Архитектор полок",
+"Regalarchitekt"
+],
+[
+"Arquivista",
+"Archivist",
+"Архивариус",
+"Archivar"
+],
+[
+"Arquivo de lombadas",
+"Spine archive",
+"Архив корешков",
+"Rückenarchiv"
+],
+[
+"Arquivo fotográfico",
+"Photo archive",
+"Фотоархив",
+"Fotoarchiv"
+],
+[
+"Arrasta para rodar",
+"Drag to rotate",
+"Перетаскивай, чтобы вращать",
+"Zum Drehen ziehen"
+],
+[
+"Atualizado para a versão {v}. Vê as novidades.",
+"Updated to version {v}. See what's new.",
+"Обновлено до версии {v}. Смотри, что нового.",
+"Auf Version {v} aktualisiert. Sieh dir die Neuerungen an."
+],
+[
+"Bem apresentado",
+"Well presented",
+"Хорошо представлен(а)",
+"Gut präsentiert"
+],
+[
+"Biblioteca em retrato",
+"Library in portraits",
+"Библиотека в портретах",
+"Bibliothek im Porträt"
+],
+[
+"Catálogo vivo",
+"Living catalogue",
+"Живой каталог",
+"Lebendiger Katalog"
+],
+[
+"Cidadão do ReadFlow",
+"ReadFlow citizen",
+"Гражданин ReadFlow",
+"ReadFlow-Bürger"
+],
+[
+"Cidade dos livros",
+"City of books",
+"Город книг",
+"Stadt der Bücher"
+],
+[
+"Colecionador de tijolos",
+"Brick collector",
+"Коллекционер кирпичей",
+"Ziegelsammler"
+],
+[
+"Construtor de catedrais",
+"Cathedral builder",
+"Строитель соборов",
+"Dombaumeister"
+],
+[
+"Coração de biblioteca",
+"Library heart",
+"Сердце библиотеки",
+"Bibliotheksherz"
+],
+[
+"Corrigido",
+"Fixed",
+"Исправлено",
+"Behoben"
+],
+[
+"Crítico lendário",
+"Legendary critic",
+"Легендарный критик",
+"Legendärer Kritiker"
+],
+[
+"Crítico respeitado",
+"Respected critic",
+"Уважаемый критик",
+"Angesehener Kritiker"
+],
+[
+"Cronista da leitura",
+"Reading chronicler",
+"Летописец чтения",
+"Lesechronist"
+],
+[
+"Dia sem fim",
+"Endless day",
+"Бесконечный день",
+"Endloser Tag"
+],
+[
+"Dieta de livros",
+"Book diet",
+"Книжная диета",
+"Bücherdiät"
+],
+[
+"Dobra espacial",
+"Warp drive",
+"Варп-двигатель",
+"Warpantrieb"
+],
+[
+"Dois anos sem falhar",
+"Two years without missing",
+"Два года без пропусков",
+"Zwei Jahre ohne Ausfall"
+],
+[
+"Domingueiro",
+"Sunday regular",
+"Воскресный завсегдатай",
+"Sonntagsstammgast"
+],
+[
+"Estante do coração",
+"Bookshelf of the heart",
+"Полка для души",
+"Regal des Herzens"
+],
+[
+"Eterno fim de semana",
+"Eternal weekend",
+"Вечные выходные",
+"Ewiges Wochenende"
+],
+[
+"Foguete",
+"Rocket",
+"Ракета",
+"Rakete"
+],
+[
+"Furacão",
+"Hurricane",
+"Ураган",
+"Hurrikan"
+],
+[
+"Galeria viva",
+"Living gallery",
+"Живая галерея",
+"Lebendige Galerie"
+],
+[
+"Influenciador de leitura",
+"Reading influencer",
+"Инфлюенсер чтения",
+"Lese-Influencer"
+],
+[
+"Insónia literária",
+"Literary insomnia",
+"Литературная бессонница",
+"Literarische Schlaflosigkeit"
+],
+[
+"Jornada completa",
+"Full shift",
+"Полный рабочий день",
+"Volle Schicht"
+],
+[
+"Jornada de leitura",
+"Reading shift",
+"Читательская смена",
+"Leseschicht"
+],
+[
+"Lenda do almoço",
+"Lunch legend",
+"Легенда обеда",
+"Mittagslegende"
+],
+[
+"Livreiro de coração",
+"Bookseller at heart",
+"Книготорговец в душе",
+"Buchhändler aus Leidenschaft"
+],
+[
+"Meio cento de amores",
+"Fifty loves",
+"Полсотни любимых",
+"Fünfzig Lieblinge"
+],
+[
+"Melhorado",
+"Improved",
+"Улучшено",
+"Verbessert"
+],
+[
+"Memória viva",
+"Living memory",
+"Живая память",
+"Lebendiges Gedächtnis"
+],
+[
+"Mestre da velocidade",
+"Master of speed",
+"Мастер скорости",
+"Meister der Geschwindigkeit"
+],
+[
+"Mil dias a ler",
+"A thousand days of reading",
+"Тысяча дней чтения",
+"Tausend Lesetage"
+],
+[
+"Notas da nova versão",
+"Release notes",
+"Примечания к новой версии",
+"Hinweise zur neuen Version"
+],
+[
+"Novo",
+"New",
+"Новое",
+"Neu"
+],
+[
+"O que há de novo em cada versão.",
+"What is new in each version.",
+"Что нового в каждой версии.",
+"Was in jeder Version neu ist."
+],
+[
+"Parede de capas",
+"Wall of covers",
+"Стена обложек",
+"Wand der Cover"
+],
+[
+"Passos do perfil concluídos (foto, descrição, nome, favorito, recomendação, conta online): {n}",
+"Profile steps completed (photo, description, name, favourite, recommendation, online account): {n}",
+"Выполнено шагов профиля (фото, описание, имя, избранное, рекомендация, онлайн-аккаунт): {n}",
+"Abgeschlossene Profilschritte (Foto, Beschreibung, Name, Favorit, Empfehlung, Online-Konto): {n}"
+],
+[
+"Pedreiro literário",
+"Literary bricklayer",
+"Литературный каменщик",
+"Literarischer Maurer"
+],
+[
+"Perfil a tomar forma",
+"Profile taking shape",
+"Профиль обретает форму",
+"Profil nimmt Form an"
+],
+[
+"Prescritor literário",
+"Literary prescriber",
+"Литературный рекомендатель",
+"Literarischer Empfehler"
+],
+[
+"Quase lá",
+"Almost there",
+"Почти готово",
+"Fast geschafft"
+],
+[
+"Quinhentos dias",
+"Five hundred days",
+"Пятьсот дней",
+"Fünfhundert Tage"
+],
+[
+"Raio literário",
+"Literary lightning",
+"Литературная молния",
+"Literarischer Blitz"
+],
+[
+"Reiniciar e atualizar",
+"Restart and update",
+"Перезапустить и обновить",
+"Neu starten und aktualisieren"
+],
+[
+"Relógio biológico",
+"Body clock",
+"Биологические часы",
+"Innere Uhr"
+],
+[
+"Repórter de leituras",
+"Reading reporter",
+"Репортёр чтения",
+"Lesereporter"
+],
+[
+"Sábados de leitura",
+"Reading Saturdays",
+"Читательские субботы",
+"Lesesamstage"
+],
+[
+"Sem anotação partilhada.",
+"No annotation shared.",
+"Заметка не опубликована.",
+"Keine Anmerkung geteilt."
+],
+[
+"Sem dormir",
+"No sleep",
+"Без сна",
+"Ohne Schlaf"
+],
+[
+"Sem tempo para mais nada",
+"No time for anything else",
+"Нет времени ни на что другое",
+"Keine Zeit für anderes"
+],
+[
+"Tempestade de livros",
+"Book storm",
+"Книжная буря",
+"Büchersturm"
+],
+[
+"Todas as manhãs",
+"Every morning",
+"Каждое утро",
+"Jeden Morgen"
+],
+[
+"Todas as noites",
+"Every night",
+"Каждую ночь",
+"Jede Nacht"
+],
+[
+"Velocidade da luz",
+"Speed of light",
+"Скорость света",
+"Lichtgeschwindigkeit"
+],
+[
+"Ver em 3D",
+"View in 3D",
+"Смотреть в 3D",
+"In 3D ansehen"
+],
+[
+"Versão atual",
+"Current version",
+"Текущая версия",
+"Aktuelle Version"
+],
+[
+"Verso",
+"Back",
+"Оборот",
+"Rückseite"
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -138,16 +138,16 @@
       } catch (e) { resolve(null); }
     });
   }
-  /** Miniatura 96x144 de uma capa (substituível nos testes). */
-  function defaultThumb(coverId) {
+  /** Miniatura de uma capa (140x210) ou de uma lombada (40x200). Substituível nos testes. */
+  function defaultThumb(imageId, kind) {
     return new Promise((resolve) => {
       try {
-        const url = S.imgUrl(coverId);
+        const url = S.imgUrl(imageId);
         if (!url || typeof Image === 'undefined') return resolve(null);
         const img = new Image();
         img.onload = () => {
           try {
-            const w = 96, h = 144, c = document.createElement('canvas'); c.width = w; c.height = h;
+            const w = kind === 'spine' ? 40 : 140, h = kind === 'spine' ? 200 : 210, c = document.createElement('canvas'); c.width = w; c.height = h;
             const x = c.getContext('2d'), k = Math.max(w / img.width, h / img.height);
             x.drawImage(img, (w - img.width * k) / 2, (h - img.height * k) / 2, img.width * k, img.height * k);
             let q = 0.62, d = c.toDataURL('image/jpeg', q);
@@ -164,10 +164,15 @@
   /** Capas dos livros que vão ser partilhados (só das listas ligadas em Privacidade). */
   async function coverThumbs() {
     const p = S.state.settings.privacy, out = new Map();
-    const want = S.state.books.filter((b) => b.coverId && ((p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend)));
+    const want = S.state.books.filter((b) => (b.coverId || b.spineId) && ((p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend)));
+    const one = async (kind, id, key) => {
+      const ck = kind + ':' + id;
+      if (!thumbCache.has(ck)) thumbCache.set(ck, await api.thumbProvider(id, kind));
+      if (thumbCache.get(ck)) out.set(key, thumbCache.get(ck));
+    };
     for (const b of want.slice(0, 400)) {
-      if (!thumbCache.has(b.coverId)) thumbCache.set(b.coverId, await api.thumbProvider(b.coverId));
-      if (thumbCache.get(b.coverId)) out.set(b.coverId, thumbCache.get(b.coverId));
+      if (b.coverId) await one('cover', b.coverId, 'c2-' + b.coverId);
+      if (b.spineId) await one('spine', b.spineId, 's2-' + b.spineId);
     }
     return out;
   }
@@ -252,9 +257,9 @@
 
   /* ---------- Capas dos amigos (descarregadas à medida que são precisas) ---------- */
   const LISTS = ['reading', 'finished', 'favorites', 'recommendations'];
-  function keysOf(uid, sections, limit) {
+  function keysOf(uid, sections, limit, withSpines) {
     const sh = cache.shared[uid] || {}, out = [];
-    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) if (it.ck) out.push(it.ck);
+    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) { if (it.ck) out.push(it.ck); if (withSpines && it.sk) out.push(it.sk); }
     return out;
   }
   async function fetchCovers(uid, keys) {
@@ -275,6 +280,15 @@
     let total = 0;
     for (const f of cache.following) if (f.status === 'accepted') total += await fetchCovers(f.uid, keysOf(f.uid, LISTS, 12));
     if (total) hooks.change();
+  }
+  /** Descarrega capas/lombadas concretas (para o livro em 3D). Devolve { chave: data URL }. */
+  async function loadKeys(handle, keys) {
+    const p = byHandle(handle);
+    if (!p) return {};
+    await fetchCovers(p.uid, keys);
+    const have = coversByUid[p.uid] || {}, out = {};
+    for (const k of keys) if (k && have[k]) out[k] = have[k];
+    return out;
   }
   /** Descarrega todas as capas de uma pessoa (para a lista completa). Devolve quantas chegaram. */
   async function loadCovers(handle, sections) {
@@ -310,7 +324,7 @@
   }
   function recommendations() {
     const out = [];
-    for (const f of cache.following) if (f.status === 'accepted') for (const r of (cache.shared[f.uid] || {}).recommendations || []) out.push({ u: f, title: r.title, author: r.author, note: r.note, rating: r.rating || 0, review: r.review || '', ck: r.ck || '', coverData: (coversByUid[f.uid] || {})[r.ck] || null });
+    for (const f of cache.following) if (f.status === 'accepted') for (const r of (cache.shared[f.uid] || {}).recommendations || []) out.push({ u: f, title: r.title, author: r.author, note: r.note, rating: r.rating || 0, review: r.review || '', ck: r.ck || '', sk: r.sk || '', pages: r.pages || 0, coverData: (coversByUid[f.uid] || {})[r.ck] || null, spineData: (coversByUid[f.uid] || {})[r.sk] || null });
     return out;
   }
 
@@ -357,7 +371,7 @@
   RF.remote = {
     configured, signedIn: () => !!(session && state.user), state, cache, RemoteError, explain,
     signUp, signIn, signOut, deleteAccount, diagnose, restore, pull, pushNow, schedulePush, follow, unfollow, removeFollower, respond,
-    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, person: byHandle, api, startPolling, stopPolling,
+    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, startPolling, stopPolling,
     setHooks: (h) => { hooks = { ...hooks, ...h }; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
