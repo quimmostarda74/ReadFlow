@@ -20,11 +20,28 @@
       document.documentElement.setAttribute('data-theme', s.appTheme || 'classic');
       RF.i18n.setLang(s.lang || 'pt');
     },
+    /** Dá XP pelos livros terminados que ainda não deram (1 XP por página). Devolve o resumo ou null. */
+    async awardXp(silent) {
+      const s = S.state.settings; s.xpLedger = s.xpLedger || {};
+      const pend = L.pendingXp(S.state.books, s.xpLedger);
+      if (!pend.length) return null;
+      const before = L.levelFromXp(L.ledgerTotal(s.xpLedger));
+      for (const p of pend) s.xpLedger[p.id] = p.xp;
+      await S.saveSettings();
+      const total = L.ledgerTotal(s.xpLedger), after = L.levelFromXp(total), gained = pend.reduce((a, p) => a + p.xp, 0);
+      if (!silent) {
+        const toasts = [{ type: 'xp', name: pend.length === 1 ? t('+{n} XP por terminares «{title}»', { n: gained, title: pend[0].title }) : t('+{n} XP por {count} livros terminados', { n: gained, count: pend.length }) }];
+        if (after > before) toasts.push({ type: 'xp', level: true, name: t('Subiste para o nível {n}!', { n: after }) });
+        UI.toastAchievements(toasts);
+      }
+      return { gained, before, after, total };
+    },
     /** Verifica conquistas e novos visuais. Devolve as conquistas novas. */
     async checkAchievements(silent) {
       const st = S.state;
       const { fresh } = L.evaluate(st.books, st.sessions, st.unlocked, st.shelves, st.settings);
       if (fresh.length) { await S.unlock(fresh); if (silent !== true) UI.toastAchievements(fresh); }
+      await RF.app.awardXp(silent === true);
       const visuals = await RF.shelf.syncCosmetics(silent === true);
       if (visuals.length && silent !== true) UI.toastAchievements(visuals);
       return fresh;
@@ -77,6 +94,7 @@
     if (root.readflowApp && root.readflowApp.onUpdateStatus) root.readflowApp.onUpdateStatus((p) => { RF.updateInfo = p; const el = document.getElementById('update-status'); if (el) el.textContent = RF.updateText(p); if (route === 'updates') render(); });
     RF.session.restore(active);
     await RF.shelf.syncCosmetics(true);
+    await RF.app.awardXp(true);                     // dá, sem avisos, o XP dos livros que já estavam terminados
     RF.remote.setHooks({
       change: () => {
         const base = route.startsWith('book:') ? 'library' : route.startsWith('friend') ? 'friends' : route;

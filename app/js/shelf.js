@@ -14,6 +14,10 @@
   const sh = (c) => `0 7px 14px rgba(0,0,0,${c})`;
   const THEMES = [
     { id: 'wood', name: 'Madeira clássica', rule: { kind: 'free' }, vars: { '--board-bg': `${woodGrain('.08', 14)}, linear-gradient(#D9AB78, #A87444 55%, #8A5A30)`, '--board-h': '16px', '--board-shadow': sh('.3') } },
+    { id: 'matteblack', name: 'Preto', rule: { kind: 'free' }, vars: { '--board-bg': 'linear-gradient(#2A2A2F, #101013)', '--board-h': '14px', '--board-shadow': sh('.45') } },
+    { id: 'armygreen', name: 'Verde tropa', rule: { kind: 'free' }, vars: { '--board-bg': 'linear-gradient(#66743F, #4B5320 55%, #343A16)', '--board-h': '14px', '--board-shadow': sh('.4') } },
+    { id: 'plainred', name: 'Vermelho', rule: { kind: 'free' }, vars: { '--board-bg': 'linear-gradient(#D6303B, #B3202A 60%, #861820)', '--board-h': '14px', '--board-shadow': sh('.4') } },
+    { id: 'plainwhite', name: 'Branco', rule: { kind: 'free' }, vars: { '--board-bg': 'linear-gradient(#FFFFFF, #ECECF0)', '--board-h': '14px', '--board-shadow': '0 6px 12px rgba(30,40,80,.22)' } },
     { id: 'oak', name: 'Carvalho claro', rule: { kind: 'added', n: 3 }, vars: { '--board-bg': `repeating-linear-gradient(90deg, rgba(120,80,30,.1) 0 1px, transparent 1px 16px), linear-gradient(#EFDCB8, #D4B07C 60%, #B88F58)`, '--board-h': '16px', '--board-shadow': sh('.25') } },
     { id: 'pine', name: 'Pinho', rule: { kind: 'hours', n: 2 }, vars: { '--board-bg': `repeating-linear-gradient(90deg, rgba(160,90,20,.16) 0 2px, transparent 2px 22px), linear-gradient(#F1D08A, #DDB05E 60%, #B98B3A)`, '--board-h': '16px', '--board-shadow': sh('.25') } },
     { id: 'cherry', name: 'Cerejeira', rule: { kind: 'hours', n: 10 }, vars: { '--board-bg': `${woodGrain('.12', 12)}, linear-gradient(#B4533A, #8E3523 60%, #6A2416)`, '--board-h': '16px', '--board-shadow': sh('.35') } },
@@ -31,13 +35,24 @@
     { id: 'glass', name: 'Vidro', rule: { kind: 'hours', n: 75 }, vars: { '--board-bg': 'linear-gradient(rgba(215,240,255,.92), rgba(140,200,235,.55))', '--board-h': '11px', '--board-shadow': '0 8px 16px rgba(20,60,100,.28), inset 0 1px 0 rgba(255,255,255,.9)' } },
     { id: 'steel', name: 'Metal industrial', rule: { kind: 'finished', n: 5 }, vars: { '--board-bg': 'linear-gradient(#A5AEB8, #6E7882 55%, #4C555E)', '--board-h': '13px', '--board-shadow': sh('.4') } },
     { id: 'neon', name: 'Néon nerd', rule: { kind: 'ach', id: 'pages_1' }, vars: { '--board-bg': 'linear-gradient(#171A3A, #0C0E24)', '--board-h': '11px', '--board-shadow': '0 0 16px #00E5FF, 0 0 3px #00E5FF' } },
-    { id: 'gold', name: 'Biblioteca real', rule: { kind: 'achCount', n: 30 }, vars: { '--board-bg': 'linear-gradient(#F8DE86, #CBA43D 55%, #8A6A1E)', '--board-h': '15px', '--board-shadow': sh('.45') } }
+    { id: 'gold', name: 'Biblioteca real', rule: { kind: 'achCount', n: 30 }, vars: { '--board-bg': 'linear-gradient(#F8DE86, #CBA43D 55%, #8A6A1E)', '--board-h': '15px', '--board-shadow': sh('.45') } },
+    { id: 'concrete', name: 'Betão', rule: { kind: 'finished', n: 15 }, vars: { '--board-bg': 'radial-gradient(circle at 20% 30%, rgba(255,255,255,.18) 0 2px, transparent 3px) 0 0/18px 18px, linear-gradient(#ABAEB4, #8A8D94)', '--board-h': '15px', '--board-shadow': sh('.35') } },
+    { id: 'carbon', name: 'Fibra de carbono', rule: { kind: 'achCount', n: 40 }, vars: { '--board-bg': 'repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 2px, transparent 2px 4px), repeating-linear-gradient(-45deg, rgba(0,0,0,.3) 0 2px, transparent 2px 4px), linear-gradient(#2B2B30, #17171B)', '--board-h': '13px', '--board-shadow': sh('.5') } },
+    { id: 'copper', name: 'Cobre', rule: { kind: 'finished', n: 40 }, vars: { '--board-bg': 'linear-gradient(#EBA67D, #B8693F 55%, #7E4326)', '--board-h': '14px', '--board-shadow': sh('.42') } },
+    { id: 'bamboo', name: 'Bambu', rule: { kind: 'hours', n: 150 }, vars: { '--board-bg': 'repeating-linear-gradient(90deg, rgba(60,80,20,.3) 0 2px, transparent 2px 60px), linear-gradient(#CBD88C, #A9B964 60%, #8A9B48)', '--board-h': '15px', '--board-shadow': sh('.3') } },
+    { id: 'camo', name: 'Camuflado', rule: { kind: 'streak', n: 21 }, vars: { '--board-bg': 'radial-gradient(ellipse 18px 7px at 14px 8px, #3E4A25 0 98%, transparent 100%) 0 0/46px 20px, radial-gradient(ellipse 14px 6px at 34px 14px, #1F2A14 0 98%, transparent 100%) 0 0/46px 20px, radial-gradient(ellipse 10px 5px at 26px 4px, #6B7A3D 0 98%, transparent 100%) 0 0/46px 20px, #55633A', '--board-h': '18px', '--board-shadow': sh('.35') } },
+    { id: 'checker', name: 'Xadrez', rule: { kind: 'sessions', n: 100 }, vars: { '--board-bg': 'conic-gradient(#1B1B1F 25%, #F3F3F3 0 50%, #1B1B1F 0 75%, #F3F3F3 0) 0 0/18px 18px', '--board-h': '18px', '--board-shadow': sh('.35') } },
+    { id: 'rainbow', name: 'Arco-íris', rule: { kind: 'achCount', n: 80 }, vars: { '--board-bg': 'linear-gradient(90deg, #FF5A5F, #FFA94D, #FFE066, #69DB7C, #4DABF7, #9775FA)', '--board-h': '13px', '--board-shadow': sh('.3') } }
   ];
 
   /* ---------- Fundos da estante ---------- */
   const dots = 'radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent) 0 0/240px 150px, radial-gradient(1px 1px at 80px 70px, #fff, transparent) 0 0/240px 150px, radial-gradient(1.5px 1.5px at 140px 20px, #fff, transparent) 0 0/240px 150px, radial-gradient(1px 1px at 200px 110px, #fff, transparent) 0 0/240px 150px, radial-gradient(1px 1px at 50px 120px, #cde, transparent) 0 0/240px 150px';
   const BACKGROUNDS = [
     { id: 'neutral', name: 'Neutro', dark: false, rule: { kind: 'free' }, css: 'linear-gradient(#ECEDF2, #D9DCE6)' },
+    { id: 'bgblack', name: 'Preto', dark: true, rule: { kind: 'free' }, css: 'linear-gradient(#1C1C20, #0B0B0D)' },
+    { id: 'bgarmy', name: 'Verde tropa', dark: true, rule: { kind: 'free' }, css: 'linear-gradient(#5A6630, #3D4519)' },
+    { id: 'bgred', name: 'Vermelho', dark: true, rule: { kind: 'free' }, css: 'linear-gradient(#B3202A, #7E141C)' },
+    { id: 'bgwhite', name: 'Branco', dark: false, rule: { kind: 'free' }, css: 'linear-gradient(#FFFFFF, #EEF0F4)' },
     { id: 'minimal', name: 'Minimalista', dark: false, rule: { kind: 'finished', n: 1 }, css: 'linear-gradient(#F7F5F0, #ECE8DF)' },
     { id: 'library', name: 'Biblioteca clássica', dark: true, rule: { kind: 'hours', n: 5 }, css: 'repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 140px), linear-gradient(180deg, #22443A 0 64%, #5A3E28 64% 65%, #1A3028 65%)' },
     { id: 'school', name: 'Escolar', dark: false, rule: { kind: 'sessions', n: 10 }, css: 'linear-gradient(90deg, transparent 58px, rgba(220,60,60,.5) 58px 60px, transparent 60px), repeating-linear-gradient(#FBFAF3 0 27px, #BFD4E8 27px 28px)' },
@@ -48,7 +63,13 @@
     { id: 'brick', name: 'Tijolo', dark: true, rule: { kind: 'added', n: 25 }, css: 'repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 3px, transparent 3px 26px), repeating-linear-gradient(90deg, rgba(0,0,0,.2) 0 3px, transparent 3px 62px), linear-gradient(#B3573E, #8F3F2C)' },
     { id: 'architect', name: 'Arquiteto', dark: true, rule: { kind: 'finished', n: 10 }, css: 'linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px) 0 0/24px 24px, linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px) 0 0/24px 24px, linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px) 0 0/120px 120px, linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px) 0 0/120px 120px, #1F4E9A' },
     { id: 'night', name: 'Noite estrelada', dark: true, rule: { kind: 'ach', id: 'night_0' }, css: `${dots}, linear-gradient(#0B1030, #1B1450)` },
-    { id: 'sunset', name: 'Pôr do sol', dark: true, rule: { kind: 'streak', n: 30 }, css: 'linear-gradient(180deg, #2B1B54 0, #8E3B7A 38%, #F2745B 70%, #FFC067 100%)' }
+    { id: 'sunset', name: 'Pôr do sol', dark: true, rule: { kind: 'streak', n: 30 }, css: 'linear-gradient(180deg, #2B1B54 0, #8E3B7A 38%, #F2745B 70%, #FFC067 100%)' },
+    { id: 'desert', name: 'Deserto', dark: false, rule: { kind: 'added', n: 40 }, css: 'radial-gradient(circle at 80% 15%, rgba(255,240,200,.6) 0, transparent 35%), linear-gradient(#F2D4A0, #D9A866)' },
+    { id: 'floral', name: 'Papel de parede', dark: false, rule: { kind: 'ach', id: 'notes_0' }, css: 'radial-gradient(circle at 12px 12px, rgba(200,90,120,.5) 0 4px, transparent 5px) 0 0/40px 40px, radial-gradient(circle at 32px 32px, rgba(90,140,90,.45) 0 5px, transparent 6px) 0 0/40px 40px, linear-gradient(#F6E7E9, #EBCFD6)' },
+    { id: 'camobg', name: 'Camuflado', dark: true, rule: { kind: 'finished', n: 20 }, css: 'radial-gradient(ellipse 60px 24px at 40px 30px, #3E4A25 0 98%, transparent 100%) 0 0/150px 90px, radial-gradient(ellipse 48px 20px at 110px 64px, #1F2A14 0 98%, transparent 100%) 0 0/150px 90px, radial-gradient(ellipse 34px 16px at 80px 14px, #6B7A3D 0 98%, transparent 100%) 0 0/150px 90px, #55633A' },
+    { id: 'checkerbg', name: 'Xadrez', dark: false, rule: { kind: 'sessions', n: 75 }, css: 'conic-gradient(#E4E5EC 25%, #F8F8FB 0 50%, #E4E5EC 0 75%, #F8F8FB 0) 0 0/56px 56px' },
+    { id: 'ocean', name: 'Oceano', dark: true, rule: { kind: 'hours', n: 60 }, css: 'repeating-linear-gradient(180deg, rgba(255,255,255,.08) 0 2px, transparent 2px 22px), linear-gradient(#1C6FA8, #0B3C66)' },
+    { id: 'aurora', name: 'Aurora boreal', dark: true, rule: { kind: 'achCount', n: 60 }, css: 'radial-gradient(ellipse at 30% 20%, rgba(80,255,180,.45), transparent 55%), radial-gradient(ellipse at 75% 30%, rgba(140,90,255,.4), transparent 55%), linear-gradient(#071A2B, #0B1030)' }
   ];
   const ALL = [...THEMES.map((x) => ({ ...x, type: 'theme' })), ...BACKGROUNDS.map((x) => ({ ...x, type: 'bg' }))];
 
@@ -96,7 +117,7 @@
     const fresh = okIds.filter((id) => !seen.has(id));
     if (first || fresh.length) { st.seenCosmetics = okIds; await S.saveSettings(); }
     if (first || silent) return [];
-    return ALL.filter((c) => fresh.includes(c.id));
+    return ALL.filter((c) => fresh.includes(c.id) && c.rule.kind !== 'free');
   }
 
   /* ---------- Desenho das prateleiras ---------- */
@@ -174,6 +195,26 @@
     return el;
   }
 
+  /** Janela ao centro com as opções da imagem própria (webcam, ficheiro, usar, remover). */
+  function openCustomImage(onDone) {
+    UI.openModal((api) => {
+      const st = S.state.settings, custom = customBg();
+      const finish = async () => { await S.saveSettings(); RF.app.refresh(); api.close(); if (onDone) onDone(); };
+      const prev = h('div', { class: 'custom-prev' + (custom ? '' : ' empty') }, custom ? null : icon('image', 32));
+      if (custom) prev.style.background = custom.css;
+      return h('div', { class: 'dialog' }, UI.modalHeader(t('A minha imagem'), api), prev,
+        h('p', { class: 'muted small' }, custom ? (st.shelfBg === 'custom' ? t('Em uso') : t('Já tens uma imagem guardada.')) : t('Carrega uma fotografia ou imagem para a parede.')),
+        UI.photoPicker(async (blob) => {
+          await S.removeImage(st.shelfBgImageId); st.shelfBgImageId = await S.addImage(blob);
+          st.shelfBgDark = await isDarkImage(S.imgUrl(st.shelfBgImageId)); st.shelfBg = 'custom'; await finish();
+        }, { crop: false, maxSide: 2400 }),
+        h('div', { class: 'row gap wrap' },
+          custom && st.shelfBg !== 'custom' ? h('button', { class: 'btn primary', onClick: async () => { st.shelfBg = 'custom'; await finish(); } }, t('Usar esta imagem')) : null,
+          custom ? h('button', { class: 'btn ghost danger-text', onClick: async () => { await S.removeImage(st.shelfBgImageId); st.shelfBgImageId = null; if (st.shelfBg === 'custom') st.shelfBg = 'neutral'; await finish(); } }, icon('trash', 14), t('Remover imagem')) : null),
+        h('div', { class: 'row end' }, h('button', { class: 'btn', onClick: () => api.close() }, t('Fechar'))));
+    });
+  }
+
   function openCustomize() {
     UI.openModal((api) => {
       const wrap = h('div', { class: 'stack' });
@@ -188,16 +229,9 @@
                 : h('div', { class: 'stack tight' }, h('div', { class: 'muted tiny' }, r.text), r.target > 1 ? UI.progressBar(r.value / r.target) : null)));
         };
         const customPrev = custom ? bgPreview(custom) : h('div', { class: 'cos-prev bg empty-prev' }, icon('image', 28));
-        const customCard = h('div', { class: 'cos-card' + (st.shelfBg === 'custom' && custom ? ' on' : '') },
-          h('div', { onClick: async () => { if (custom) { st.shelfBg = 'custom'; await S.saveSettings(); RF.app.refresh(); paint(); } }, class: 'link' }, customPrev),
-          h('div', { class: 'cos-body stack tight' }, h('div', { class: 'strong small' }, t('A minha imagem')),
-            h('div', { class: 'muted tiny' }, custom ? (st.shelfBg === 'custom' ? t('Em uso') : t('Toca na imagem para usar')) : t('Carrega uma fotografia ou imagem para a parede.')),
-            UI.photoPicker(async (blob) => {
-              await S.removeImage(st.shelfBgImageId); st.shelfBgImageId = await S.addImage(blob);
-              st.shelfBgDark = await isDarkImage(S.imgUrl(st.shelfBgImageId)); st.shelfBg = 'custom';
-              await S.saveSettings(); RF.app.refresh(); paint();
-            }, { crop: false, maxSide: 2400 }),
-            custom ? h('button', { class: 'btn ghost danger-text small-btn', onClick: async () => { await S.removeImage(st.shelfBgImageId); st.shelfBgImageId = null; if (st.shelfBg === 'custom') st.shelfBg = 'neutral'; await S.saveSettings(); RF.app.refresh(); paint(); } }, icon('trash', 14), t('Remover imagem')) : null));
+        const customCard = h('button', { class: 'cos-card' + (st.shelfBg === 'custom' && custom ? ' on' : ''), onClick: () => openCustomImage(paint) },
+          customPrev, h('div', { class: 'cos-body' }, h('div', { class: 'strong small' }, t('A minha imagem')),
+            h('div', { class: 'muted tiny' }, custom ? (st.shelfBg === 'custom' ? t('Em uso') : t('Desbloqueado')) : t('Toca para escolher uma imagem'))));
         wrap.replaceChildren(
           h('h3', null, t('Prateleiras')),
           h('div', { class: 'cos-grid' }, ...THEMES.map((x) => card(x, themeOf(st.shelfTheme, ctx).id === x.id, () => { st.shelfTheme = x.id; }, themePreview(x)))),

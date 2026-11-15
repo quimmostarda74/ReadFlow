@@ -10,7 +10,7 @@
 
   const DEFAULT_SETTINGS = {
     id: 'settings', name: '', bio: '', photoId: null, libraryName: '', shelfBgImageId: null, shelfBgDark: true, privacyV2: true, dailyGoal: 20, weeklyGoal: 150, libraryStyle: 'spines',
-    shelfTheme: 'wood', shelfBg: 'neutral', seenCosmetics: null, lastSeenVersion: '', toastedVersion: '', appTheme: 'classic', lang: 'pt',
+    shelfTheme: 'wood', shelfBg: 'neutral', seenCosmetics: null, lastSeenVersion: '', toastedVersion: '', xpLedger: {}, appTheme: 'classic', lang: 'pt',
     handleName: '', handleNumber: 0,
     privacy: { reading: true, finished: true, favorites: true, recommendations: true, bio: true, achievements: true, activity: true, stats: true, reviews: true },
     social: { demo: false, following: {}, followers: {}, queued: [] }

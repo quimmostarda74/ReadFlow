@@ -4,6 +4,28 @@
   root.RF = root.RF || {};
   // k: new (novo) | imp (melhorado) | fix (corrigido). Cada item tem o texto nos 4 idiomas.
   const E = [
+    { v: '1.6.0', date: '2026-11', items: [
+      { k: 'new', pt: 'Níveis de perfil: ganhas 1 XP por cada página dos livros que terminas. O nível é infinito e aparece no teu perfil, visível para toda a gente que o abrir.',
+        en: 'Profile levels: you earn 1 XP for every page of the books you finish. Levels are endless and shown on your profile, visible to everyone who opens it.',
+        ru: 'Уровни профиля: ты получаешь 1 XP за каждую страницу завершённых книг. Уровни бесконечны и показаны в твоём профиле для всех, кто его откроет.',
+        de: 'Profilstufen: Für jede Seite der beendeten Bücher erhältst du 1 XP. Die Stufen sind unendlich und auf deinem Profil für alle sichtbar, die es öffnen.' },
+      { k: 'new', pt: 'Ao clicar num livro no perfil de alguém abre-se a ficha com a «Introdução Geral» que a pessoa escreveu. O livro em 3D foi retirado.',
+        en: 'Clicking a book on someone’s profile opens its card with the «General Introduction» the person wrote. The 3D book was removed.',
+        ru: 'Нажатие на книгу в профиле открывает карточку с «Общим введением», которое написал владелец. 3D-книга удалена.',
+        de: 'Ein Klick auf ein Buch im Profil öffnet die Karte mit der «Allgemeinen Einführung» der Person. Das 3D-Buch wurde entfernt.' },
+      { k: 'imp', pt: 'Em cada livro, a caixa «Notas» passou a chamar-se «Introdução Geral».',
+        en: 'In each book, the «Notes» box is now called «General Introduction».',
+        ru: 'В каждой книге поле «Заметки» теперь называется «Общее введение».',
+        de: 'Bei jedem Buch heißt das Feld «Notizen» jetzt «Allgemeine Einführung».' },
+      { k: 'new', pt: 'Todos têm 5 escolhas por defeito para prateleiras e fundos, incluindo Preto, Verde tropa, Vermelho e Branco. Novos padrões desbloqueáveis com conquistas.',
+        en: 'Everyone gets 5 default choices for shelves and backgrounds, including Black, Army green, Red and White. New patterns unlockable with achievements.',
+        ru: 'У каждого есть 5 вариантов по умолчанию для полок и фонов, включая чёрный, цвет хаки, красный и белый. Новые узоры открываются достижениями.',
+        de: 'Alle haben 5 Standardauswahlen für Regale und Hintergründe, darunter Schwarz, Armeegrün, Rot und Weiß. Neue Muster lassen sich mit Erfolgen freischalten.' },
+      { k: 'fix', pt: 'Nos fundos, «A minha imagem» tem o mesmo tamanho dos outros; os botões de webcam e ficheiro só aparecem numa janela ao centro quando a escolhes.',
+        en: 'In backgrounds, «My image» is the same size as the others; the webcam and file buttons only appear in a window in the centre when you choose it.',
+        ru: 'В фонах «Моё изображение» теперь того же размера, что и остальные; кнопки веб-камеры и файла появляются в окне по центру, только когда ты её выбираешь.',
+        de: 'Bei den Hintergründen ist «Mein Bild» jetzt genauso groß wie die anderen; die Schaltflächen für Webcam und Datei erscheinen nur in einem Fenster in der Mitte, wenn du es wählst.' }
+    ] },
     { v: '1.5.0', date: '2026-11', items: [
       { k: 'new', pt: 'Livros em 3D nos perfis dos amigos: clica num livro e roda-o com o rato. A frente usa a capa, a lombada usa a foto da lombada e o verso mostra a anotação da pessoa.',
         en: 'Books in 3D on friends’ profiles: click a book and rotate it with the mouse. The front uses the cover, the spine uses the spine photo and the back shows the person’s annotation.',
@@ -77,6 +99,6 @@
         de: 'Profil aus Sicht eines Followers mit Statistiken und Aktivität; 5 Vorschaubilder mit «Mehr ansehen».' }
     ] }
   ];
-  root.RF.changelog = { current: '1.5.0', entries: E };
+  root.RF.changelog = { current: '1.6.0', entries: E };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.RF.changelog;
 })(typeof window !== 'undefined' ? window : globalThis);

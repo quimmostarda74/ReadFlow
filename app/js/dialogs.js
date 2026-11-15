@@ -18,7 +18,7 @@
       const author = h('input', { type: 'text', value: d.author, placeholder: t('Autor'), onInput: (e) => { d.author = e.target.value; } });
       const pages = h('input', { type: 'number', min: 0, value: d.totalPages || '', placeholder: t('Número de páginas'), onInput: (e) => { d.totalPages = Math.max(0, parseInt(e.target.value, 10) || 0); paintSpine(); } });
       const current = h('input', { type: 'number', min: 0, value: d.currentPage || '', placeholder: t('Página em que vais') });
-      const notes = h('textarea', { rows: 2, placeholder: t('Notas sobre o livro') }, d.notes);
+      const notes = h('textarea', { rows: 4, placeholder: t('Escreve uma introdução ao livro. Quem te segue pode lê-la.') }, d.notes);
       const bought = h('input', { type: 'text', value: d.boughtAt || '', placeholder: t('Ex.: Wook, Bertrand, feira do livro…'), onInput: (e) => { d.boughtAt = e.target.value; } });
       const err = h('div', { class: 'err-note' });
       const genre = h('select', { onChange: (e) => { d.genre = e.target.value; } },
@@ -69,7 +69,7 @@
             h('label', { class: 'field' }, h('span', null, t('Onde compraste (opcional)')), bought),
             h('div', { class: 'field' }, h('span', null, t('Estado')), statusRow), extra,
             recBox,
-            h('label', { class: 'field' }, h('span', null, t('Notas')), notes)),
+            h('label', { class: 'field' }, h('span', null, t('Introdução Geral')), notes)),
           h('div', { class: 'stack' },
             h('div', { class: 'field' }, h('span', null, t('Capa')),
               h('div', { class: 'row gap' }, coverBox, h('div', { class: 'stack' },

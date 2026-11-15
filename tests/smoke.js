@@ -297,20 +297,20 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   ok('Lombadas: todos os livros com a lombada visível (sem capas para a frente)');
 
   // (5) capas enviadas ao servidor, limpeza e servidor sem a tabela de capas; notas e avaliações com privacidade
-  const cid = await S.addImage(new Blob(['img'])), sid = await S.addImage(new Blob(['sp']));
-  nb2.coverId = cid; nb2.spineId = sid; nb2.favorite = true; nb2.rating = 5; nb2.notes = 'minha nota'; await S.saveBook(nb2);
+  const cid = await S.addImage(new Blob(['img']));
+  nb2.coverId = cid; nb2.favorite = true; nb2.rating = 5; nb2.notes = 'minha nota'; await S.saveBook(nb2);
   R.api.thumbProvider = async () => 'data:image/jpeg;base64,/9j/CCCC';
   await R.pushNow(true);
   const favPayload = M.db.shared.get(`${meId}|favorites`).payload.find((x) => x.title === 'Livro Req');
   if (!M.db.covers.has(`${meId}|c2-${cid}`) || favPayload.ck !== 'c2-' + cid) throw new Error('capa não enviada');
-  if (!M.db.covers.has(`${meId}|s2-${sid}`) || favPayload.sk !== 's2-' + sid || favPayload.pages !== 321) throw new Error('lombada/páginas não enviadas');
+  if (favPayload.pages !== 321 || 'sk' in favPayload) throw new Error('páginas em falta ou lombada partilhada sem querer');
   if (favPayload.rating !== 5 || favPayload.review !== 'minha nota') throw new Error('nota e avaliação não enviadas');
   S.state.settings.privacy.reviews = false; await R.pushNow(true);
   const fp2 = M.db.shared.get(`${meId}|favorites`).payload.find((x) => x.title === 'Livro Req');
   if ('rating' in fp2 || 'review' in fp2) throw new Error('com «Notas e avaliações» desligado não devia enviar');
   S.state.settings.privacy.reviews = true;
   nb2.coverId = null; await S.saveBook(nb2); await R.pushNow(true);
-  if (M.db.covers.has(`${meId}|c2-${cid}`) || !M.db.covers.has(`${meId}|s2-${sid}`)) throw new Error('só a capa antiga devia ser apagada do servidor');
+  if (M.db.covers.has(`${meId}|c2-${cid}`)) throw new Error('a capa antiga devia ser apagada do servidor');
   M.flags.noCovers = true; nb2.coverId = cid; await S.saveBook(nb2); S.state.settings.bio = 'bio nova'; await R.pushNow(true); M.flags.noCovers = false;
   if (M.db.shared.get(`${meId}|bio`).payload.text !== 'bio nova') throw new Error('sem a tabela de capas o resto do perfil devia sincronizar');
   ok('capas enviadas e limpas; notas/avaliações respeitam a privacidade; sem a tabela de capas nada se estraga');
@@ -331,7 +331,7 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   RF.app.go('rankings'); const rt = text(roots[0]);
   if (!/Rankings/.test(rt) || !/Luis/.test(rt) || !/Sem estatísticas partilhadas: Quiet/.test(rt)) throw new Error('ecrã Rankings: ' + rt.slice(0, 500));
   const pods1 = (r) => walk(r).filter((n) => n.className.split(' ').includes('p1') && n.className.split(' ').includes('pod')).length;
-  if (pods1(roots[0]) !== 5) throw new Error('total devia ter 5 rankings, tem ' + pods1(roots[0]));
+  if (pods1(roots[0]) !== 6) throw new Error('total devia ter 6 rankings, tem ' + pods1(roots[0]));
   clickBtn(roots[0], 'Semana'); if (pods1(roots[0]) !== 3) throw new Error('semana devia ter 3 rankings'); clickBtn(roots[0], 'Total');
   ok('rankings: Tempo, Páginas, Livros (+ Ritmo e Sequência no total), top 3 em cada, por semana/mês/total');
 
@@ -356,37 +356,103 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   const achGrid = walk(roots[0]).find((n) => n.className.split(' ').includes('ach-grid'));
   if (!achGrid || achGrid.children.length !== 25 || achGrid.children.some((c) => walk(c).filter((n) => n.className.split(' ').includes('medal-btn')).length !== 6 || !walk(c).some((n) => n.className.split(' ').includes('ach-foot')))) throw new Error('cartões de conquistas devem ter todos 6 medalhas e o mesmo rodapé');
   ok('150 conquistas: todas as categorias com 6 níveis; todos os cartões com o mesmo número de medalhas');
-  // (2) livro em 3D no perfil de um amigo
+  // (2) ficha do livro ao clicar num livro no perfil de um amigo (com a «Introdução Geral»)
   RF.app.go('friend:maria#204819'); await sleep(80);
   const th = walk(roots[0]).find((n) => n.className.split(' ').includes('thumb')); if (!th) throw new Error('sem miniaturas');
   th.listeners.click[0](); await sleep(150);
-  const m3 = roots[1];
-  if (walk(m3).filter((n) => n.className.split(' ').includes('b3d-face')).length !== 6) throw new Error('livro 3D devia ter 6 faces');
-  if (!walk(m3).some((n) => n.className.split(' ').includes('b3d-front') && walk(n).some((c) => c.className.split(' ').includes('cover') && /AAAA/.test(String(c.style.backgroundImage || ''))))) throw new Error('frente do livro 3D sem a capa do amigo');
-  if (!walk(m3).some((n) => n.className.split(' ').includes('b3d-spine') && walk(n).some((c) => /SPINE/.test(String(c.style.backgroundImage || ''))))) throw new Error('lombada do livro 3D sem a foto da lombada');
-  const backTxt = text(walk(m3).find((n) => n.className.split(' ').includes('b3d-back')));
-  if (!/Anotação/.test(backTxt) || !/Gostei muito/.test(backTxt)) throw new Error('verso do livro 3D sem a anotação: ' + backTxt);
-  const sc = walk(m3).find((n) => n.className.split(' ').includes('b3d-scene')), ob = walk(m3).find((n) => n.className.split(' ').includes('b3d'));
-  const t0 = ob.style.transform;
-  sc.listeners.pointerdown[0]({ clientX: 100, clientY: 100, pointerId: 1 }); sc.listeners.pointermove[0]({ clientX: 180, clientY: 100 }); sc.listeners.pointerup[0]();
-  if (ob.style.transform === t0 || !/rotateY\(76deg\)/.test(ob.style.transform)) throw new Error('arrastar com o rato devia rodar o livro: ' + ob.style.transform);
-  clickBtn(m3, 'Verso'); if (!/rotateY\(180deg\)/.test(ob.style.transform)) throw new Error('botão Verso'); clickBtn(m3, 'Lombada'); if (!/rotateY\(90deg\)/.test(ob.style.transform)) throw new Error('botão Lombada');
-  clickBtn(m3, 'Capa'); if (!/rotateY\(28deg\)/.test(ob.style.transform)) throw new Error('botão Capa');
+  const mi = roots[1], infoTxt = text(mi);
+  if (!/Introdução Geral/.test(infoTxt) || !/Gostei muito/.test(infoTxt) || !/280 páginas/.test(infoTxt)) throw new Error('ficha do livro: ' + infoTxt);
+  if (!walk(mi).some((n) => n.className.split(' ').includes('cover') && /AAAA/.test(String(n.style.backgroundImage || '')))) throw new Error('ficha sem a imagem da capa');
+  if (!walk(mi).some((n) => n.className.includes('stars-static'))) throw new Error('ficha sem avaliação');
+  if (walk(mi).some((n) => n.className.split(' ').some((c) => c.startsWith('b3d')))) throw new Error('o 3D devia ter sido retirado');
+  clickBtn(mi, 'Quero ler'); await sleep(200);
+  const wl2 = S.state.books.find((b) => b.title === 'Rd 0' && b.status === 'wantToRead');
+  if (!wl2 || wl2.totalPages !== 280 || !wl2.coverId) throw new Error('«Quero ler» a partir da ficha devia levar a capa e as páginas');
   roots[1].children = [];
   RF.app.go('friendlist:maria#204819:recs'); await sleep(60);
   walk(roots[0]).find((n) => n.className.split(' ').includes('full-item')).listeners.click[0](); await sleep(80);
-  if (walk(roots[1]).filter((n) => n.className.split(' ').includes('b3d-face')).length !== 6) throw new Error('a lista completa também devia abrir o livro em 3D');
+  if (!/Introdução Geral/.test(text(roots[1])) || !/Recomendação/.test(text(roots[1]))) throw new Error('a lista completa também devia abrir a ficha');
   roots[1].children = [];
-  ok('livro em 3D: capa, lombada (descarregada ao abrir), anotação no verso, rodar com o rato e botões Capa/Lombada/Verso');
+  ok('clicar num livro no perfil de um amigo abre a ficha com a Introdução Geral, a capa e a avaliação (sem 3D)');
   // (3) separador Atualizações
   S.state.settings.lastSeenVersion = ''; RF.app.go('home');
   if (!walk(roots[0]).some((n) => n.className.split(' ').includes('nav-dot'))) throw new Error('devia haver um ponto de novidade no menu');
   RF.app.go('updates'); const ut = text(roots[0]);
-  if (!ut.includes(RF.changelog.current) || !/Livros em 3D/.test(ut) || !/Versão atual/.test(ut)) throw new Error('separador Atualizações: ' + ut.slice(0, 300));
+  if (!ut.includes(RF.changelog.current) || !/Níveis de perfil/.test(ut) || !/Versão atual/.test(ut)) throw new Error('separador Atualizações: ' + ut.slice(0, 300));
   RF.app.go('home'); if (walk(roots[0]).some((n) => n.className.split(' ').includes('nav-dot'))) throw new Error('o ponto devia desaparecer depois de abrir');
-  for (const [lg, word] of [['en', 'Books in 3D'], ['ru', 'Книги в 3D'], ['de', 'Bücher in 3D']]) { S.state.settings.lang = lg; RF.app.applyTheme(); RF.app.go('updates'); if (!text(roots[0]).includes(word)) throw new Error('novidades em ' + lg); }
+  for (const [lg, word] of [['en', 'Profile levels'], ['ru', 'Уровни профиля'], ['de', 'Profilstufen']]) { S.state.settings.lang = lg; RF.app.applyTheme(); RF.app.go('updates'); if (!text(roots[0]).includes(word)) throw new Error('novidades em ' + lg); }
   S.state.settings.lang = 'pt'; RF.app.applyTheme();
   ok('«Atualizações»: histórico de versões nos 4 idiomas e ponto de novidade no menu');
+
+
+  // ===== Versão 1.6 =====
+  roots[1].children = [];
+  const Lq = RF.logic;
+  // (1) «Introdução Geral» no formulário
+  RF.dialogs.openBookForm(); const ftxt = text(roots[1]);
+  if (!/Introdução Geral/.test(ftxt) || /Notas sobre o livro/.test(ftxt)) throw new Error('o formulário devia ter «Introdução Geral»'); roots[1].children = [];
+  RF.app.go('friends'); clickBtn(roots[0], 'Privacidade'); if (!/Introdução Geral e avaliações dos livros/.test(text(roots[0]))) throw new Error('rótulo de privacidade');
+  ok('«Notas» passou a «Introdução Geral» (formulário e privacidade)');
+  // (2) 5 escolhas por defeito e novos padrões
+  const freeT = RF.shelf.THEMES.filter((x) => x.rule.kind === 'free').map((x) => x.name), freeB = RF.shelf.BACKGROUNDS.filter((x) => x.rule.kind === 'free').map((x) => x.name);
+  const want5 = (arr, first) => arr.length === 5 && ['Preto', 'Verde tropa', 'Vermelho', 'Branco', first].every((n) => arr.includes(n));
+  if (!want5(freeT, 'Madeira clássica') || !want5(freeB, 'Neutro')) throw new Error('5 escolhas por defeito: ' + freeT + ' | ' + freeB);
+  if (new Set(RF.shelf.ALL.map((x) => x.id)).size !== RF.shelf.ALL.length) throw new Error('ids de visuais repetidos');
+  const snap0 = Lq.snapshot([], [], [], {}), ctx0 = { snap: snap0, unlocked: new Map() };
+  for (const x of RF.shelf.ALL) { const ok_ = Lq.ruleState(x.rule, snap0, new Map()).ok; if ((x.rule.kind === 'free') !== ok_) throw new Error('regra de desbloqueio: ' + x.id); if (x.rule.kind === 'ach' && !Lq.achById[x.rule.id]) throw new Error('conquista inexistente: ' + x.rule.id); }
+  if (RF.shelf.THEMES.length < 26 || RF.shelf.BACKGROUNDS.length < 22) throw new Error('padrões novos em falta');
+  S.state.settings.seenCosmetics = ['wood', 'neutral']; const freshV = await RF.shelf.syncCosmetics(false);
+  if (freshV.some((c) => c.rule.kind === 'free') || !S.state.settings.seenCosmetics.includes('matteblack')) throw new Error('os visuais por defeito não devem gerar aviso de «novo visual»');
+  ok('prateleiras e fundos: 5 escolhas por defeito (Preto, Verde tropa, Vermelho, Branco + a original) e padrões novos por desbloquear');
+  // (3) «A minha imagem»: cartão do mesmo tamanho e botões só numa janela ao centro
+  RF.shelf.openCustomize();
+  const grids = walk(roots[1]).filter((n) => n.className.split(' ').includes('cos-grid'));
+  if (grids.length !== 2 || grids[1].children.length !== RF.shelf.BACKGROUNDS.length + 1) throw new Error('grelha de fundos');
+  if (grids[1].children.some((c) => !c.className.split(' ').includes('cos-card') || !walk(c).some((n) => n.className.split(' ').includes('cos-prev')) || !walk(c).some((n) => n.className.split(' ').includes('cos-body')))) throw new Error('todos os cartões devem ter a mesma estrutura');
+  if (walk(roots[1]).some((n) => n.tagName === 'BUTTON' && /^(Webcam|Escolher ficheiro)$/.test(text(n).trim()))) throw new Error('os botões de webcam/ficheiro não devem estar na grelha');
+  const nMod = roots[1].children.length;
+  grids[1].children[0].listeners.click[0]({ target: grids[1].children[0], stopPropagation() {} });
+  if (roots[1].children.length !== nMod + 1) throw new Error('clicar em «A minha imagem» devia abrir uma janela');
+  const customModal = roots[1].children[roots[1].children.length - 1];
+  const bt = walk(customModal).filter((n) => n.tagName === 'BUTTON').map((n) => text(n).trim());
+  if (!bt.includes('Webcam') || !bt.includes('Escolher ficheiro')) throw new Error('janela sem os botões: ' + bt);
+  roots[1].children = [];
+  ok('«A minha imagem» com o mesmo tamanho dos outros fundos; webcam e ficheiro só na janela ao centro');
+  // (4) níveis e experiência (infinito)
+  if (Lq.levelFromXp(0) !== 1 || Lq.levelFromXp(299) !== 1 || Lq.levelFromXp(300) !== 2 || Lq.levelFromXp(699) !== 2 || Lq.levelFromXp(700) !== 3) throw new Error('limites dos níveis');
+  for (let n = 1; n <= 5000; n++) { if (Lq.levelFromXp(Lq.xpToReach(n)) !== n || (n > 1 && Lq.levelFromXp(Lq.xpToReach(n) - 1) !== n - 1)) throw new Error('nível ' + n); }
+  const hi = Lq.levelInfo(1e12); if (!(hi.level > 100000) || !(hi.pct >= 0 && hi.pct < 1) || !Number.isFinite(hi.level)) throw new Error('nível infinito: ' + JSON.stringify(hi));
+  await RF.app.awardXp(true);
+  const xpBook = S.newBook({ title: 'XP Book', author: 'Z', totalPages: 300, status: 'finished' }); await S.saveBook(xpBook);
+  const before0 = Lq.ledgerTotal(S.state.settings.xpLedger);
+  const r1 = await RF.app.awardXp(false);
+  if (!r1 || r1.gained !== 300 || Lq.ledgerTotal(S.state.settings.xpLedger) !== before0 + 300) throw new Error('XP ao terminar um livro: ' + JSON.stringify(r1));
+  if (await RF.app.awardXp(false) !== null) throw new Error('não devia dar XP duas vezes');
+  xpBook.status = 'reading'; await S.saveBook(xpBook); xpBook.status = 'finished'; await S.saveBook(xpBook);
+  if (await RF.app.awardXp(false) !== null) throw new Error('terminar outra vez o mesmo livro não dá XP');
+  const xpBook2 = S.newBook({ title: 'XP Book 2', author: 'Z', totalPages: 120, status: 'finished' }); await S.saveBook(xpBook2); await RF.app.checkAchievements(true);
+  if (!(xpBook2.id in S.state.settings.xpLedger) || S.state.settings.xpLedger[xpBook2.id] !== 120) throw new Error('checkAchievements devia dar o XP');
+  RF.app.go('profile'); if (!/Nível \d+/.test(text(roots[0])) || !/XP/.test(text(roots[0]))) throw new Error('o meu perfil devia mostrar o nível');
+  ok('níveis infinitos: 1 XP por página ao terminar um livro (uma só vez por livro) e nível no meu perfil');
+  // (5) o nível chega aos outros: perfil aprovado, cartão bloqueado e rankings
+  await R.pushNow(true);
+  if (M.db.profiles.get(meId).privacy.xp !== Lq.ledgerTotal(S.state.settings.xpLedger)) throw new Error('o XP devia ir no perfil do servidor');
+  M.db.profiles.get(mariaId).privacy.xp = 1234; M.db.profiles.get(luisId).privacy.xp = 1e9;
+  const zedId = M.seed({ name: 'zed', number: 100009, display: 'Zed', sections: {} }); M.db.profiles.get(zedId).privacy.xp = 5000; M.follow(meId, zedId, 'pending');
+  await R.pull(true);
+  if (R.person('maria#204819').xp !== 1234) throw new Error('xp da Maria');
+  RF.app.go('friend:maria#204819'); if (!/Nível 4/.test(text(roots[0]))) throw new Error('perfil do amigo devia mostrar Nível 4');
+  RF.app.go('friend:zed#100009'); let zt = text(roots[0]);
+  if (!/Nível \d+/.test(zt) || !/Segue esta pessoa e espera/.test(zt) || !/Nível 8/.test(zt)) throw new Error('o cartão bloqueado também mostra o nível: ' + zt.slice(0, 300));
+  RF.app.go('rankings'); const xpRank = [{ id: 'me', name: 'Tester', me: true, xp: Lq.ledgerTotal(S.state.settings.xpLedger) }, ...R.rankingPeople()];
+  if (SOCm.ranking(xpRank, 'xp', 'total')[0].p.name !== 'Luis') throw new Error('ranking de XP');
+  if (!/Nível e experiência/.test(text(roots[0]))) throw new Error('quadro de nível nos rankings');
+  ok('o nível aparece no perfil de quem seguimos, no cartão bloqueado e nos rankings');
+  // (6) ficha do livro nas recomendações dos amigos
+  RF.app.go('recommended'); clickBtn(roots[0], 'Dos amigos');
+  const rcov = walk(roots[0]).find((n) => n.className.split(' ').includes('rec-card')); const rc = walk(rcov).find((n) => n.className.split(' ').includes('cover'));
+  rc.listeners.click[0](); await sleep(100); if (!/Introdução Geral/.test(text(roots[1]))) throw new Error('ficha a partir das recomendações'); roots[1].children = [];
+  ok('capa nas recomendações dos amigos abre a ficha do livro');
 
   // Perfil visto por um seguidor: 5 miniaturas + "Ver mais", estatísticas e atividade
   for (let i = 0; i < 8; i++) await S.saveBook(S.newBook({ title: 'Fav ' + i, author: 'A', status: 'finished', favorite: true, totalPages: 100 }));

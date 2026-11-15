@@ -165,13 +165,13 @@
     const a = toastQueue.shift();
     if (!a) { toastActive = false; return; }
     toastActive = true;
-    const cos = a.type === 'theme' || a.type === 'bg', info = a.type === 'info';
+    const cos = a.type === 'theme' || a.type === 'bg', info = a.type === 'info', xp = a.type === 'xp';
     const el = h('div', { class: 'toast', onClick: () => { dismiss(); if (cos && RF.shelf) RF.shelf.openCustomize(); if (a.go && RF.app) RF.app.go(a.go); } },
-      (cos || info) ? h('div', { class: 'medal on', style: { width: '52px', height: '52px', background: 'linear-gradient(135deg,#3347FF,#8B7BFF)' } }, icon(info ? 'users' : 'palette', 22)) : medal(a, true, 52),
+      (cos || info || xp) ? h('div', { class: 'medal on', style: { width: '52px', height: '52px', background: xp ? 'linear-gradient(135deg,#F2B632,#F07A1A)' : 'linear-gradient(135deg,#3347FF,#8B7BFF)' } }, icon(xp ? 'star' : info ? 'users' : 'palette', 22)) : medal(a, true, 52),
       h('div', null,
-        h('div', { class: 'toast-kicker' }, info ? t('Amigos') : cos ? t('Novo visual desbloqueado') : t('Conquista desbloqueada')),
-        h('div', { class: 'toast-title' }, info ? a.name : cos ? t(a.name) : L.achTitle(a)),
-        info ? null : h('div', { class: 'muted small' }, cos ? (a.type === 'theme' ? t('Prateleira') : t('Fundo da estante')) : `${L.tierName(a.tier)}: ${L.achDetail(a)}`)));
+        h('div', { class: 'toast-kicker' }, xp ? t('Experiência') : info ? t('Amigos') : cos ? t('Novo visual desbloqueado') : t('Conquista desbloqueada')),
+        h('div', { class: 'toast-title' }, (info || xp) ? a.name : cos ? t(a.name) : L.achTitle(a)),
+        (info || xp) ? null : h('div', { class: 'muted small' }, cos ? (a.type === 'theme' ? t('Prateleira') : t('Fundo da estante')) : `${L.tierName(a.tier)}: ${L.achDetail(a)}`)));
     let done = false;
     function dismiss() {
       if (done) return;
@@ -207,7 +207,7 @@
   function spineEl(book, size) {
     const w = size ? size.w : L.spineWidth(book);
     const hh = size ? size.h : L.spineHeight(book);
-    const url = RF.store.imgUrl(book.spineId) || book.spineData || null;
+    const url = RF.store.imgUrl(book.spineId);
     const el = h('div', { class: 'spine' + (url ? ' photo' : ''), style: { width: w + 'px', height: hh + 'px' }, title: book.title });
     if (url) {
       el.style.backgroundImage = `url("${url}")`;
@@ -247,35 +247,32 @@
     return el;
   }
 
-  /** Livro em 3D: arrasta com o rato para rodar. Frente = capa, lombada = foto da lombada, verso = anotação. */
-  function openBook3D(it) {
-    const W = 190, H = 285, D = Math.round(Math.min(80, Math.max(26, (it.pages || 270) / 9)));
-    let rx = -8, ry = 28, drag = null;
-    const obj = h('div', { class: 'b3d', style: { '--w': W + 'px', '--h': H + 'px', '--d': D + 'px' } });
-    const apply = () => { obj.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; };
-    const note = (it.review || '').trim(), rec = (it.note || '').trim();
-    const pages = (cls) => h('div', { class: 'b3d-face b3d-pages ' + cls });
-    obj.append(
-      h('div', { class: 'b3d-face b3d-front' }, coverEl(it, W)),
-      h('div', { class: 'b3d-face b3d-back' }, h('div', { class: 'b3d-note' },
-        h('div', { class: 'b3d-note-title' }, t('Anotação')), it.rating > 0 ? starsStatic(it.rating, 14) : null,
-        (note || rec) ? h('div', { class: 'b3d-note-text' }, note || ('“' + rec + '”'), (note && rec) ? h('div', { class: 'b3d-note-rec' }, '“' + rec + '”') : null) : h('div', { class: 'b3d-note-text empty' }, t('Sem anotação partilhada.')),
-        h('div', { class: 'b3d-note-foot' }, it.title + (it.author ? ' · ' + it.author : '')))),
-      h('div', { class: 'b3d-face b3d-spine' }, spineEl(it, { w: D, h: H })),
-      pages('b3d-right'), pages('b3d-top'), pages('b3d-bottom'));
-    apply();
-    const scene = h('div', { class: 'b3d-scene' }, obj);
-    scene.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, rx, ry }; obj.classList.remove('anim'); scene.classList.add('drag'); if (scene.setPointerCapture) scene.setPointerCapture(e.pointerId); });
-    scene.addEventListener('pointermove', (e) => { if (!drag) return; ry = drag.ry + (e.clientX - drag.x) * 0.6; rx = Math.max(-70, Math.min(70, drag.rx - (e.clientY - drag.y) * 0.6)); apply(); });
-    const end = () => { drag = null; scene.classList.remove('drag'); };
-    scene.addEventListener('pointerup', end); scene.addEventListener('pointercancel', end);
-    const go = (tx, ty) => { obj.classList.add('anim'); rx = tx; ry = ty + 360 * Math.round((ry - ty) / 360); apply(); };
-    return openModal((api) => h('div', { class: 'dialog b3d-dialog' }, modalHeader(it.title, api),
-      it.author ? h('p', { class: 'muted center-text' }, it.author) : null, scene,
-      h('p', { class: 'muted small center-text' }, t('Arrasta para rodar')),
-      h('div', { class: 'row gap center-x wrap' },
-        h('button', { class: 'btn small-btn', onClick: () => go(-8, 28) }, t('Capa')), h('button', { class: 'btn small-btn', onClick: () => go(0, 90) }, t('Lombada')), h('button', { class: 'btn small-btn', onClick: () => go(0, 180) }, t('Verso'))),
-      h('div', { class: 'row end' }, h('button', { class: 'btn primary', onClick: () => api.close() }, t('Fechar')))), { wide: false });
+  /** Ficha de um livro de outra pessoa: capa, autor, páginas, avaliação e a «Introdução Geral». */
+  function openBookInfo(it, opts) {
+    opts = opts || {};
+    const intro = (it.review || '').trim(), rec = (it.note || '').trim();
+    return openModal((api) => h('div', { class: 'dialog book-info' }, modalHeader(it.title, api),
+      h('div', { class: 'row gap' }, coverEl(it, 120),
+        h('div', { class: 'stack tight grow' },
+          h('div', { class: 'strong serif' }, it.title), it.author ? h('div', { class: 'muted' }, it.author) : null,
+          it.pages > 0 ? h('div', { class: 'muted small' }, t('{n} páginas', { n: it.pages })) : null,
+          it.rating > 0 ? starsStatic(it.rating, 16) : null)),
+      h('div', { class: 'stack tight' }, h('div', { class: 'strong small' }, t('Introdução Geral')),
+        intro ? h('div', { class: 'intro-text' }, intro) : h('div', { class: 'muted small' }, t('Sem introdução partilhada.'))),
+      rec ? h('div', { class: 'stack tight' }, h('div', { class: 'strong small' }, t('Recomendação')), h('div', { class: 'intro-text' }, '“' + rec + '”')) : null,
+      h('div', { class: 'row end gap' }, opts.action ? opts.action(api) : null, h('button', { class: 'btn primary', onClick: () => api.close() }, t('Fechar')))));
+  }
+
+  /** Nível e barra de experiência (XP). `compact`: versão mais pequena, para perfis de outras pessoas. */
+  function levelBadge(xp, opts) {
+    opts = opts || {};
+    const li = L.levelInfo(xp), fmt = (n) => n.toLocaleString(RF.i18n.locale());
+    return h('div', { class: 'lvl' + (opts.compact ? ' compact' : '') },
+      h('div', { class: 'lvl-circle' }, h('span', { class: 'lvl-small' }, t('Nível')), h('strong', null, String(li.level))),
+      h('div', { class: 'stack tight grow' },
+        h('div', { class: 'strong' }, t('Nível {n}', { n: li.level }) + ' · ' + t('{xp} XP', { xp: fmt(li.xp) })),
+        progressBar(li.pct),
+        h('div', { class: 'muted tiny' }, t('Faltam {xp} XP para o nível {n}', { xp: fmt(li.next - li.xp), n: li.level + 1 }))));
   }
 
   function progressBar(p, color) {
@@ -525,6 +522,6 @@
 
   RF.ui = {
     h, icon, openModal, modalHeader, hasModal, hasModalAbove, confirmDialog, promptDialog, toastAchievements,
-    medal, avatar, spineEl, coverEl, ring, progressBar, stars, starsStatic, openBook3D, barChart, heatmap, photoPicker, openCropper, openCamera
+    medal, avatar, spineEl, coverEl, ring, progressBar, stars, starsStatic, openBookInfo, levelBadge, barChart, heatmap, photoPicker, openCropper, openCamera
   };
 })(typeof window !== 'undefined' ? window : globalThis);

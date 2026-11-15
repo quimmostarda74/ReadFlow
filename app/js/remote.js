@@ -138,7 +138,7 @@
       } catch (e) { resolve(null); }
     });
   }
-  /** Miniatura de uma capa (140x210) ou de uma lombada (40x200). Substituível nos testes. */
+  /** Miniatura de uma capa (140x210). Substituível nos testes. */
   function defaultThumb(imageId, kind) {
     return new Promise((resolve) => {
       try {
@@ -164,16 +164,13 @@
   /** Capas dos livros que vão ser partilhados (só das listas ligadas em Privacidade). */
   async function coverThumbs() {
     const p = S.state.settings.privacy, out = new Map();
-    const want = S.state.books.filter((b) => (b.coverId || b.spineId) && ((p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend)));
+    const want = S.state.books.filter((b) => b.coverId && ((p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend)));
     const one = async (kind, id, key) => {
       const ck = kind + ':' + id;
       if (!thumbCache.has(ck)) thumbCache.set(ck, await api.thumbProvider(id, kind));
       if (thumbCache.get(ck)) out.set(key, thumbCache.get(ck));
     };
-    for (const b of want.slice(0, 400)) {
-      if (b.coverId) await one('cover', b.coverId, 'c2-' + b.coverId);
-      if (b.spineId) await one('spine', b.spineId, 's2-' + b.spineId);
-    }
+    for (const b of want.slice(0, 400)) if (b.coverId) await one('cover', b.coverId, 'c2-' + b.coverId);
     return out;
   }
   async function syncCovers(thumbs) {
@@ -204,7 +201,7 @@
     const thumbs = await coverThumbs();
     const st = S.state.settings, sections = SOC.publicSections(S, new Set(thumbs.keys()));
     if (avatarCache.id !== st.photoId) avatarCache = { id: st.photoId, data: st.photoId ? await avatarThumb() : null };
-    const profile = { display_name: (st.name || st.handleName || '').slice(0, 40), avatar: avatarCache.data, privacy: st.privacy };
+    const profile = { display_name: (st.name || st.handleName || '').slice(0, 40), avatar: avatarCache.data, privacy: { ...st.privacy, xp: L.ledgerTotal(st.xpLedger) } };
     const hash = JSON.stringify({ profile, sections });
     if (!force && hash === lastHash) return;
     await rest('PATCH', 'profiles', `id=eq.${session.uid}`, { ...profile, updated_at: new Date().toISOString() });
@@ -223,7 +220,7 @@
   }
 
   /* ---------- Receber: pedidos, amigos e o que partilham comigo ---------- */
-  const personOf = (p) => ({ uid: p.id, id: `${p.handle_name}#${p.handle_number}`, name: p.display_name || p.handle_name, avatar: p.avatar || null, color: SOC.hue(p.handle_name + p.handle_number) });
+  const personOf = (p) => ({ uid: p.id, id: `${p.handle_name}#${p.handle_number}`, name: p.display_name || p.handle_name, avatar: p.avatar || null, xp: Math.max(0, Math.floor(Number(p.privacy && p.privacy.xp) || 0)), color: SOC.hue(p.handle_name + p.handle_number) });
   async function pull(silent) {
     if (!session || state.syncing) return;
     state.syncing = true;
@@ -232,7 +229,7 @@
       const rel = await rest('GET', 'follows', `select=follower_id,followee_id,status&or=(follower_id.eq.${me},followee_id.eq.${me})`) || [];
       const ids = [...new Set(rel.map((r) => (r.follower_id === me ? r.followee_id : r.follower_id)))];
       const people = {};
-      if (ids.length) for (const p of await rest('GET', 'profiles', `select=id,handle_name,handle_number,display_name,avatar&id=in.(${ids.join(',')})`) || []) people[p.id] = personOf(p);
+      if (ids.length) for (const p of await rest('GET', 'profiles', `select=id,handle_name,handle_number,display_name,avatar,privacy&id=in.(${ids.join(',')})`) || []) people[p.id] = personOf(p);
       const following = [], followers = [];
       for (const r of rel) {
         if (r.follower_id === me && people[r.followee_id]) following.push({ ...people[r.followee_id], status: r.status });
@@ -257,9 +254,9 @@
 
   /* ---------- Capas dos amigos (descarregadas à medida que são precisas) ---------- */
   const LISTS = ['reading', 'finished', 'favorites', 'recommendations'];
-  function keysOf(uid, sections, limit, withSpines) {
+  function keysOf(uid, sections, limit) {
     const sh = cache.shared[uid] || {}, out = [];
-    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) { if (it.ck) out.push(it.ck); if (withSpines && it.sk) out.push(it.sk); }
+    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) if (it.ck) out.push(it.ck);
     return out;
   }
   async function fetchCovers(uid, keys) {
@@ -324,13 +321,13 @@
   }
   function recommendations() {
     const out = [];
-    for (const f of cache.following) if (f.status === 'accepted') for (const r of (cache.shared[f.uid] || {}).recommendations || []) out.push({ u: f, title: r.title, author: r.author, note: r.note, rating: r.rating || 0, review: r.review || '', ck: r.ck || '', sk: r.sk || '', pages: r.pages || 0, coverData: (coversByUid[f.uid] || {})[r.ck] || null, spineData: (coversByUid[f.uid] || {})[r.sk] || null });
+    for (const f of cache.following) if (f.status === 'accepted') for (const r of (cache.shared[f.uid] || {}).recommendations || []) out.push({ u: f, title: r.title, author: r.author, note: r.note, rating: r.rating || 0, review: r.review || '', ck: r.ck || '', pages: r.pages || 0, coverData: (coversByUid[f.uid] || {})[r.ck] || null });
     return out;
   }
 
   /** Pessoas que conto nos rankings: quem sigo (aprovado). As minhas entram na vista. */
   function rankingPeople() {
-    return cache.following.filter((f) => f.status === 'accepted').map((f) => ({ id: f.id, name: f.name, color: f.color, avatar: f.avatar, me: false, stats: (cache.shared[f.uid] || {}).stats || null }));
+    return cache.following.filter((f) => f.status === 'accepted').map((f) => ({ id: f.id, name: f.name, color: f.color, avatar: f.avatar, xp: f.xp || 0, me: false, stats: (cache.shared[f.uid] || {}).stats || null }));
   }
 
   /** Verifica a configuração (URL, chave, registos novos, confirmação por e-mail) sem criar nada. */

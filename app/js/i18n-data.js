@@ -1935,12 +1935,6 @@
 "Notizen (optional)"
 ],
 [
-"Notas sobre o livro",
-"Notes about the book",
-"Заметки о книге",
-"Notizen zum Buch"
-],
-[
 "Nova prateleira",
 "New shelf",
 "Новая полка",
@@ -3279,12 +3273,6 @@
 "Roter Backstein"
 ],
 [
-"Toca na imagem para usar",
-"Click the image to use it",
-"Нажми на изображение, чтобы использовать",
-"Klicke auf das Bild, um es zu verwenden"
-],
-[
 "Tudo",
 "All",
 "Всё",
@@ -3657,12 +3645,6 @@
 "Kopieren war nicht möglich."
 ],
 [
-"Notas e avaliações dos livros",
-"Book notes and ratings",
-"Заметки и оценки книг",
-"Notizen und Bewertungen zu Büchern"
-],
-[
 "Onde compraste (opcional)",
 "Where you bought it (optional)",
 "Где куплена (необязательно)",
@@ -3711,12 +3693,6 @@
 "Mittagessen mit Kapitel"
 ],
 [
-"Anotação",
-"Annotation",
-"Заметка",
-"Anmerkung"
-],
-[
 "Arquiteto de estantes",
 "Shelf architect",
 "Архитектор полок",
@@ -3739,12 +3715,6 @@
 "Photo archive",
 "Фотоархив",
 "Fotoarchiv"
-],
-[
-"Arrasta para rodar",
-"Drag to rotate",
-"Перетаскивай, чтобы вращать",
-"Zum Drehen ziehen"
 ],
 [
 "Atualizado para a versão {v}. Vê as novidades.",
@@ -4041,12 +4011,6 @@
 "Lesesamstage"
 ],
 [
-"Sem anotação partilhada.",
-"No annotation shared.",
-"Заметка не опубликована.",
-"Keine Anmerkung geteilt."
-],
-[
 "Sem dormir",
 "No sleep",
 "Без сна",
@@ -4083,22 +4047,208 @@
 "Lichtgeschwindigkeit"
 ],
 [
-"Ver em 3D",
-"View in 3D",
-"Смотреть в 3D",
-"In 3D ansehen"
-],
-[
 "Versão atual",
 "Current version",
 "Текущая версия",
 "Aktuelle Version"
 ],
 [
-"Verso",
-"Back",
-"Оборот",
-"Rückseite"
+"{xp} XP",
+"{xp} XP",
+"{xp} XP",
+"{xp} XP"
+],
+[
+"+{n} XP por {count} livros terminados",
+"+{n} XP for {count} finished books",
+"+{n} XP за {count} завершённых книг",
+"+{n} XP für {count} beendete Bücher"
+],
+[
+"+{n} XP por terminares «{title}»",
+"+{n} XP for finishing «{title}»",
+"+{n} XP за завершение «{title}»",
+"+{n} XP für das Beenden von «{title}»"
+],
+[
+"Arco-íris",
+"Rainbow",
+"Радуга",
+"Regenbogen"
+],
+[
+"Aurora boreal",
+"Northern lights",
+"Северное сияние",
+"Nordlicht"
+],
+[
+"Betão",
+"Concrete",
+"Бетон",
+"Beton"
+],
+[
+"Branco",
+"White",
+"Белый",
+"Weiß"
+],
+[
+"Camuflado",
+"Camouflage",
+"Камуфляж",
+"Tarnmuster"
+],
+[
+"Cobre",
+"Copper",
+"Медь",
+"Kupfer"
+],
+[
+"Deserto",
+"Desert",
+"Пустыня",
+"Wüste"
+],
+[
+"Escreve uma introdução ao livro. Quem te segue pode lê-la.",
+"Write an introduction to the book. People who follow you can read it.",
+"Напиши введение к книге. Его смогут прочитать твои подписчики.",
+"Schreibe eine Einführung zum Buch. Wer dir folgt, kann sie lesen."
+],
+[
+"Experiência",
+"Experience",
+"Опыт",
+"Erfahrung"
+],
+[
+"Faltam {xp} XP para o nível {n}",
+"{xp} XP to go for level {n}",
+"Осталось {xp} XP до уровня {n}",
+"Noch {xp} XP bis Stufe {n}"
+],
+[
+"Fibra de carbono",
+"Carbon fibre",
+"Углеродное волокно",
+"Carbonfaser"
+],
+[
+"Ganhas 1 XP por cada página dos livros que terminas. O teu nível aparece no teu perfil para quem o abrir.",
+"You earn 1 XP for every page of the books you finish. Your level appears on your profile for anyone who opens it.",
+"Ты получаешь 1 XP за каждую страницу завершённых книг. Твой уровень виден в профиле всем, кто его откроет.",
+"Du erhältst 1 XP für jede Seite der Bücher, die du beendest. Deine Stufe erscheint auf deinem Profil für alle, die es öffnen."
+],
+[
+"Introdução Geral",
+"General Introduction",
+"Общее введение",
+"Allgemeine Einführung"
+],
+[
+"Introdução Geral e avaliações dos livros",
+"General Introduction and book ratings",
+"Общее введение и оценки книг",
+"Allgemeine Einführung und Buchbewertungen"
+],
+[
+"Já tens uma imagem guardada.",
+"You already have a saved image.",
+"У тебя уже есть сохранённое изображение.",
+"Du hast bereits ein gespeichertes Bild."
+],
+[
+"Nível",
+"Level",
+"Уровень",
+"Stufe"
+],
+[
+"Nível {n}",
+"Level {n}",
+"Уровень {n}",
+"Stufe {n}"
+],
+[
+"Nível e experiência",
+"Level and experience",
+"Уровень и опыт",
+"Stufe und Erfahrung"
+],
+[
+"Oceano",
+"Ocean",
+"Океан",
+"Ozean"
+],
+[
+"Papel de parede",
+"Wallpaper",
+"Обои",
+"Tapete"
+],
+[
+"Preto",
+"Black",
+"Чёрный",
+"Schwarz"
+],
+[
+"Recomendação",
+"Recommendation",
+"Рекомендация",
+"Empfehlung"
+],
+[
+"Sem introdução partilhada.",
+"No introduction shared.",
+"Введение не опубликовано.",
+"Keine Einführung geteilt."
+],
+[
+"Subiste para o nível {n}!",
+"You reached level {n}!",
+"Ты достиг(ла) уровня {n}!",
+"Du hast Stufe {n} erreicht!"
+],
+[
+"Toca para escolher uma imagem",
+"Tap to choose an image",
+"Нажми, чтобы выбрать изображение",
+"Tippe, um ein Bild zu wählen"
+],
+[
+"Usar esta imagem",
+"Use this image",
+"Использовать это изображение",
+"Dieses Bild verwenden"
+],
+[
+"Ver detalhes",
+"View details",
+"Показать подробности",
+"Details ansehen"
+],
+[
+"Verde tropa",
+"Army green",
+"Цвет хаки",
+"Armeegrün"
+],
+[
+"Vermelho",
+"Red",
+"Красный",
+"Rot"
+],
+[
+"Xadrez",
+"Checkerboard",
+"Шахматная клетка",
+"Schachbrett"
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

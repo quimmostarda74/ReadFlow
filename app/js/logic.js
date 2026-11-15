@@ -259,6 +259,25 @@
   }
   const sumBonus = (bonus, from = 0) => bonus.filter((x) => x.date >= from).reduce((a, x) => a + x.pages, 0);
 
+  /* ---------- Experiência (XP) e nível: infinito ---------- */
+  const xpForBook = (b) => Math.max(0, Math.floor(b.totalPages || 0));           // 1 XP por página do livro terminado
+  const xpToReach = (n) => 50 * (n - 1) * (n + 4);                                // XP total para chegar ao nível n (nível 1 = 0 XP)
+  function levelFromXp(xp) {
+    xp = Math.max(0, Math.floor(xp || 0));
+    let n = Math.max(1, Math.floor((-3 + Math.sqrt(25 + 0.08 * xp)) / 2));
+    while (xpToReach(n + 1) <= xp) n++;
+    while (n > 1 && xpToReach(n) > xp) n--;
+    return n;
+  }
+  function levelInfo(xp) {
+    xp = Math.max(0, Math.floor(xp || 0));
+    const level = levelFromXp(xp), floor = xpToReach(level), next = xpToReach(level + 1);
+    return { level, xp, floor, next, into: xp - floor, need: next - floor, pct: (xp - floor) / (next - floor) };
+  }
+  /** Livros terminados que ainda não deram XP (o registo evita dar XP duas vezes ao mesmo livro). */
+  const pendingXp = (books, ledger) => books.filter((b) => b.status === 'finished' && xpForBook(b) > 0 && !(b.id in ledger)).map((b) => ({ id: b.id, title: b.title, xp: xpForBook(b) }));
+  const ledgerTotal = (ledger) => Object.values(ledger || {}).reduce((a, v) => a + (Number(v) || 0), 0);
+
   /* ---------- Estatísticas ---------- */
   function totals(sessions) {
     return sessions.reduce((t, s) => ({ seconds: t.seconds + s.durationSeconds, pages: t.pages + pagesRead(s), sessions: t.sessions + 1 }), { seconds: 0, pages: 0, sessions: 0 });
@@ -303,7 +322,7 @@
     duration, clock, pace, timeText, shortDate, longDate, relativeDay, weekdayLetter, weekdayShort, monthShort,
     isDark, textOn, hashStr, spineHeight, spineWidth, pagesRead, pagesPerHour, bookProgress, bookSessions,
     activeDays, computeStreaks, tierName, tierColor, achTitle, achDetail, progressText,
-    snapshot, evaluate, ruleState, bonusPages, sumBonus, totals, rangeStart, buckets, bucketLabel, minutesByDay
+    snapshot, evaluate, ruleState, bonusPages, sumBonus, xpForBook, xpToReach, levelFromXp, levelInfo, pendingXp, ledgerTotal, totals, rangeStart, buckets, bucketLabel, minutesByDay
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = RF.logic;
 })(typeof window !== 'undefined' ? window : globalThis);
