@@ -9,7 +9,7 @@
   root.RF = root.RF || {};
   root.RF.config = root.RF.config || {};
   Object.assign(root.RF.config, {
-    googleClientId: '',
-    googleClientSecret: ''
+    googleClientId: '939932875138-h4jsneuqfh9cqp1d8fqf3ob1uaqu5jmu.apps.googleusercontent.com',
+    googleClientSecret: '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'
   });
 })(typeof window !== 'undefined' ? window : globalThis);
