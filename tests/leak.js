@@ -1,3 +1,4 @@
+
 // Verifica que, em inglês, russo e alemão, não sobra texto da interface em português.
 const H = require('./harness');
 const { roots, doc, text, sleep } = H;
@@ -45,7 +46,7 @@ const { createMock } = require('./mock-supabase');
   sweep(['home', 'friends', 'rankings', 'recommended', 'friend:maria#204819', 'friend:pedro#771203', 'friendlist:maria#204819:finished', 'profile']);
   const { createFakeDrive } = require('./fake-drive'), fd = createFakeDrive();
   globalThis.readflowApp = { drive: fd.api, getVersion: async () => '1.7.0', checkUpdates: async () => ({}), onUpdateStatus() {}, copyText: async () => true };
-  RF.config.googleClientId = 'cid'; RF.config.googleClientSecret = 'sec';
+  RF.config.googleClientId = 'cid';
   await RF.sync.onSignIn(RF.remote.state.user.uid, 'segredo123'); sweep(['profile']);
   await RF.sync.connect(null); sweep(['profile']);
   fd.failCode = 'api_disabled'; await RF.sync.syncNow({ manual: true }); sweep(['profile']);
