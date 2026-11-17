@@ -4,6 +4,24 @@
   root.RF = root.RF || {};
   // k: new (novo) | imp (melhorado) | fix (corrigido). Cada item tem o texto nos 4 idiomas.
   const E = [
+    { v: '1.7.0', date: '2026-11', items: [
+      { k: 'new', pt: 'Cópia na nuvem com o Google Drive: tudo o que registas (livros, leituras, estantes, conquistas, definições e imagens) fica guardado numa pasta privada do teu Google Drive e aparece em qualquer computador onde entres na tua conta.',
+        en: 'Cloud copy with Google Drive: everything you record (books, readings, shelves, achievements, settings and images) is saved in a private folder in your Google Drive and appears on any computer where you sign in to your account.',
+        ru: 'Облачная копия через Google Диск: всё, что ты записываешь (книги, чтение, полки, достижения, настройки и изображения), сохраняется в закрытой папке на твоём Google Диске и появляется на любом компьютере, где ты входишь в аккаунт.',
+        de: 'Cloud-Kopie mit Google Drive: Alles, was du erfasst (Bücher, Lesesitzungen, Regale, Erfolge, Einstellungen und Bilder), wird in einem privaten Ordner in deinem Google Drive gespeichert und erscheint auf jedem Computer, auf dem du dich anmeldest.' },
+      { k: 'new', pt: 'Podes usar vários computadores: as alterações juntam-se sozinhas e o que apagas não volta.',
+        en: 'You can use several computers: changes merge on their own and what you delete does not come back.',
+        ru: 'Можно пользоваться несколькими компьютерами: изменения объединяются сами, а удалённое не возвращается.',
+        de: 'Du kannst mehrere Computer nutzen: Änderungen werden automatisch zusammengeführt und Gelöschtes kommt nicht zurück.' },
+      { k: 'imp', pt: 'Entrar noutro computador restaura tudo sozinho. A ligação ao Google viaja cifrada e só abre com a tua palavra-passe do ReadFlow.',
+        en: 'Signing in on another computer restores everything on its own. The Google connection travels encrypted and only opens with your ReadFlow password.',
+        ru: 'Вход на другом компьютере восстанавливает всё сам. Подключение к Google передаётся в зашифрованном виде и открывается только твоим паролем ReadFlow.',
+        de: 'Die Anmeldung auf einem anderen Computer stellt alles von selbst wieder her. Die Google-Verbindung wird verschlüsselt übertragen und lässt sich nur mit deinem ReadFlow-Passwort öffnen.' },
+      { k: 'imp', pt: 'Novo cartão «Cópia na nuvem» no Perfil, com o estado, «Sincronizar agora», desligar e apagar a cópia.',
+        en: 'New «Cloud copy» card in Profile with its status, «Sync now», disconnect and delete the copy.',
+        ru: 'Новая карточка «Облачная копия» в профиле: состояние, «Синхронизировать», отключение и удаление копии.',
+        de: 'Neue Karte «Cloud-Kopie» im Profil mit Status, «Jetzt synchronisieren», Trennen und Löschen der Kopie.' }
+    ] },
     { v: '1.6.0', date: '2026-11', items: [
       { k: 'new', pt: 'Níveis de perfil: ganhas 1 XP por cada página dos livros que terminas. O nível é infinito e aparece no teu perfil, visível para toda a gente que o abrir.',
         en: 'Profile levels: you earn 1 XP for every page of the books you finish. Levels are endless and shown on your profile, visible to everyone who opens it.',
@@ -99,6 +117,6 @@
         de: 'Profil aus Sicht eines Followers mit Statistiken und Aktivität; 5 Vorschaubilder mit «Mehr ansehen».' }
     ] }
   ];
-  root.RF.changelog = { current: '1.6.0', entries: E };
+  root.RF.changelog = { current: '1.7.0', entries: E };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.RF.changelog;
 })(typeof window !== 'undefined' ? window : globalThis);

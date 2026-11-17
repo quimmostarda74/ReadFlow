@@ -94,6 +94,7 @@
     if (root.readflowApp && root.readflowApp.onUpdateStatus) root.readflowApp.onUpdateStatus((p) => { RF.updateInfo = p; const el = document.getElementById('update-status'); if (el) el.textContent = RF.updateText(p); if (route === 'updates') render(); });
     RF.session.restore(active);
     await RF.shelf.syncCosmetics(true);
+    RF.sync.setHooks({ change: () => { if (route === 'profile' || route === 'friends') render(); }, applied: () => { RF.i18n.setLang(S.state.settings.lang); app.applyTheme(); render(); } });
     await RF.app.awardXp(true);                     // dá, sem avisos, o XP dos livros que já estavam terminados
     RF.remote.setHooks({
       change: () => {

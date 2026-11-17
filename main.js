@@ -1,5 +1,7 @@
 const { app, BrowserWindow, Menu, session, shell, ipcMain, dialog, clipboard } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { createDrive } = require('./app/main/drive.js');
 
 // A atualização automática só existe na versão instalada (não no modo de desenvolvimento).
 let autoUpdater = null;
@@ -50,6 +52,34 @@ function setupUpdater() {
   setTimeout(check, 5000);                       // ao abrir
   setInterval(check, 6 * 60 * 60 * 1000);        // e de 6 em 6 horas
 }
+
+/* ---------- Google Drive (cópia na nuvem) ---------- */
+// A ligação ao Google fica guardada cifrada pelo Windows (safeStorage), uma por conta do ReadFlow.
+const { safeStorage } = require('electron');
+const tokenFile = (uid) => path.join(app.getPath('userData'), 'drive-' + String(uid).replace(/[^a-zA-Z0-9-]/g, '') + '.bin');
+const tokenStore = {
+  async load(uid) { try { return JSON.parse(safeStorage.decryptString(fs.readFileSync(tokenFile(uid)))); } catch (e) { return null; } },
+  async save(uid, value) { if (safeStorage.isEncryptionAvailable()) fs.writeFileSync(tokenFile(uid), safeStorage.encryptString(JSON.stringify(value))); },
+  async remove(uid) { try { fs.unlinkSync(tokenFile(uid)); } catch (e) { /* já não existia */ } }
+};
+const drive = createDrive({ fetch: (...a) => fetch(...a), openExternal: (url) => shell.openExternal(url), tokenStore });
+const driveCall = (fn) => async (_event, ...args) => {
+  try { return { ok: true, value: await fn(...args) }; }
+  catch (err) { return { ok: false, code: err.code || 'error', message: String((err && err.message) || err) }; }
+};
+ipcMain.handle('drive:configure', driveCall((c) => drive.configure(c)));
+ipcMain.handle('drive:set-user', driveCall((uid) => drive.setUser(uid)));
+ipcMain.handle('drive:status', driveCall(() => drive.status()));
+ipcMain.handle('drive:connect', driveCall(() => drive.connect()));
+ipcMain.handle('drive:disconnect', driveCall(() => drive.disconnect()));
+ipcMain.handle('drive:list', driveCall(() => drive.list()));
+ipcMain.handle('drive:stat', driveCall((name) => drive.stat(name)));
+ipcMain.handle('drive:read', driveCall((name) => drive.read(name)));
+ipcMain.handle('drive:write', driveCall((name, bytes, mime) => drive.write(name, bytes, mime)));
+ipcMain.handle('drive:remove', driveCall((name) => drive.remove(name)));
+ipcMain.handle('drive:wipe', driveCall(() => drive.wipeAll()));
+ipcMain.handle('drive:vault-export', driveCall((password) => drive.exportToken(password)));
+ipcMain.handle('drive:vault-import', driveCall((blob, password) => drive.importToken(blob, password)));
 
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('app:install-update', () => { if (autoUpdater && app.isPackaged) autoUpdater.quitAndInstall(); });

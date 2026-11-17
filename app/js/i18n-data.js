@@ -4249,6 +4249,318 @@
 "Checkerboard",
 "Шахматная клетка",
 "Schachbrett"
+],
+[
+"A enviar imagens",
+"Uploading images",
+"Отправка изображений",
+"Bilder werden gesendet"
+],
+[
+"À espera da autorização no browser…",
+"Waiting for authorisation in the browser…",
+"Ожидание разрешения в браузере…",
+"Warten auf die Autorisierung im Browser…"
+],
+[
+"A guardar",
+"Saving",
+"Сохранение",
+"Wird gespeichert"
+],
+[
+"A ler a cópia da nuvem",
+"Reading the cloud copy",
+"Чтение облачной копии",
+"Cloud-Kopie wird gelesen"
+],
+[
+"A preparar…",
+"Preparing…",
+"Подготовка…",
+"Wird vorbereitet…"
+],
+[
+"A receber imagens",
+"Downloading images",
+"Загрузка изображений",
+"Bilder werden empfangen"
+],
+[
+"A sincronizar com o Google Drive…",
+"Syncing with Google Drive…",
+"Синхронизация с Google Диском…",
+"Synchronisierung mit Google Drive…"
+],
+[
+"Agora não",
+"Not now",
+"Не сейчас",
+"Jetzt nicht"
+],
+[
+"Apaga tudo o que o ReadFlow guardou no teu Google Drive. Os dados deste computador não são apagados.",
+"Deletes everything ReadFlow saved in your Google Drive. The data on this computer is not deleted.",
+"Удаляет всё, что ReadFlow сохранил на твоём Google Диске. Данные на этом компьютере не удаляются.",
+"Löscht alles, was ReadFlow in deinem Google Drive gespeichert hat. Die Daten auf diesem Computer werden nicht gelöscht."
+],
+[
+"Apagar a cópia na nuvem?",
+"Delete the cloud copy?",
+"Удалить облачную копию?",
+"Cloud-Kopie löschen?"
+],
+[
+"Apagar cópia",
+"Delete copy",
+"Удалить копию",
+"Kopie löschen"
+],
+[
+"Apagar cópia na nuvem",
+"Delete cloud copy",
+"Удалить облачную копию",
+"Cloud-Kopie löschen"
+],
+[
+"Começar de novo neste computador (apaga os dados)",
+"Start afresh on this computer (deletes the data)",
+"Начать заново на этом компьютере (данные удаляются)",
+"Auf diesem Computer neu beginnen (löscht die Daten)"
+],
+[
+"Continuar",
+"Continue",
+"Продолжить",
+"Weiter"
+],
+[
+"Cópia na nuvem (Google Drive)",
+"Cloud copy (Google Drive)",
+"Облачная копия (Google Диск)",
+"Cloud-Kopie (Google Drive)"
+],
+[
+"Dados neste computador",
+"Data on this computer",
+"Данные на этом компьютере",
+"Daten auf diesem Computer"
+],
+[
+"Desligar o Google Drive?",
+"Disconnect Google Drive?",
+"Отключить Google Диск?",
+"Google Drive trennen?"
+],
+[
+"Entra na tua conta em Amigos para guardares tudo na nuvem e o teres em qualquer computador.",
+"Sign in to your account in Friends to save everything in the cloud and have it on any computer.",
+"Войди в аккаунт во вкладке «Друзья», чтобы всё сохранялось в облаке и было на любом компьютере.",
+"Melde dich unter Freunde in deinem Konto an, um alles in der Cloud zu speichern und auf jedem Computer zu haben."
+],
+[
+"Enviar os dados deste computador para a nuvem",
+"Send this computer's data to the cloud",
+"Отправить данные этого компьютера в облако",
+"Daten dieses Computers in die Cloud senden"
+],
+[
+"Esta conta ainda não tem cópia na nuvem. O que queres fazer?",
+"This account has no cloud copy yet. What do you want to do?",
+"У этого аккаунта ещё нет облачной копии. Что ты хочешь сделать?",
+"Dieses Konto hat noch keine Cloud-Kopie. Was möchtest du tun?"
+],
+[
+"Esta conta também tem uma cópia na nuvem. O que queres fazer?",
+"This account also has a cloud copy. What do you want to do?",
+"У этого аккаунта тоже есть облачная копия. Что ты хочешь сделать?",
+"Dieses Konto hat auch eine Cloud-Kopie. Was möchtest du tun?"
+],
+[
+"Este computador já tem livros e leituras.",
+"This computer already has books and readings.",
+"На этом компьютере уже есть книги и записи чтения.",
+"Auf diesem Computer gibt es bereits Bücher und Lesesitzungen."
+],
+[
+"Este computador tem dados de outra conta do ReadFlow.",
+"This computer has data from another ReadFlow account.",
+"На этом компьютере есть данные другого аккаунта ReadFlow.",
+"Dieser Computer enthält Daten eines anderen ReadFlow-Kontos."
+],
+[
+"Isto só demora assim na primeira vez.",
+"It only takes this long the first time.",
+"Так долго это только в первый раз.",
+"Nur beim ersten Mal dauert es so lange."
+],
+[
+"Isto substitui os dados deste computador e junta-os à cópia na nuvem.",
+"This replaces the data on this computer and merges it with the cloud copy.",
+"Это заменяет данные на этом компьютере и объединяет их с облачной копией.",
+"Das ersetzt die Daten auf diesem Computer und führt sie mit der Cloud-Kopie zusammen."
+],
+[
+"Juntar os dois (recomendado)",
+"Merge both (recommended)",
+"Объединить оба (рекомендуется)",
+"Beides zusammenführen (empfohlen)"
+],
+[
+"Ligado",
+"Connected",
+"Подключено",
+"Verbunden"
+],
+[
+"Ligado ao Google Drive",
+"Connected to Google Drive",
+"Подключено к Google Диску",
+"Mit Google Drive verbunden"
+],
+[
+"Ligar ao Google Drive",
+"Connect to Google Drive",
+"Подключить Google Диск",
+"Mit Google Drive verbinden"
+],
+[
+"Livros, sessões, prateleiras e conquistas serão removidos, também da cópia na nuvem e dos teus outros computadores. Esta ação não pode ser desfeita.",
+"Books, sessions, shelves and achievements will be removed, also from the cloud copy and from your other computers. This cannot be undone.",
+"Книги, сессии, полки и достижения будут удалены, в том числе из облачной копии и с твоих других компьютеров. Это нельзя отменить.",
+"Bücher, Sitzungen, Regale und Erfolge werden gelöscht, auch aus der Cloud-Kopie und von deinen anderen Computern. Das lässt sich nicht rückgängig machen."
+],
+[
+"O Google ainda não está configurado neste programa. Segue o guia docs\\NUVEM-GOOGLE-DRIVE.md.",
+"Google is not set up in this program yet. Follow the guide docs\\NUVEM-GOOGLE-DRIVE.md.",
+"Google ещё не настроен в этой программе. Следуй руководству docs\\NUVEM-GOOGLE-DRIVE.md.",
+"Google ist in diesem Programm noch nicht eingerichtet. Folge der Anleitung docs\\NUVEM-GOOGLE-DRIVE.md."
+],
+[
+"Os teus dados continuam no Google Drive e neste computador. Deixam de ser sincronizados.",
+"Your data stays in Google Drive and on this computer. It stops being synced.",
+"Твои данные остаются на Google Диске и на этом компьютере. Синхронизация прекращается.",
+"Deine Daten bleiben in Google Drive und auf diesem Computer. Sie werden nicht mehr synchronisiert."
+],
+[
+"Os teus livros, leituras, estantes, conquistas e imagens ficam guardados numa pasta privada do teu Google Drive e aparecem em qualquer computador onde entres na tua conta.",
+"Your books, readings, shelves, achievements and images are saved in a private folder in your Google Drive and appear on any computer where you sign in to your account.",
+"Твои книги, записи чтения, полки, достижения и изображения сохраняются в закрытой папке на твоём Google Диске и появляются на любом компьютере, где ты входишь в аккаунт.",
+"Deine Bücher, Lesesitzungen, Regale, Erfolge und Bilder werden in einem privaten Ordner in deinem Google Drive gespeichert und erscheinen auf jedem Computer, auf dem du dich in deinem Konto anmeldest."
+],
+[
+"Palavra-passe do ReadFlow",
+"ReadFlow password",
+"Пароль ReadFlow",
+"ReadFlow-Passwort"
+],
+[
+"Palavra-passe incorreta.",
+"Incorrect password.",
+"Неверный пароль.",
+"Falsches Passwort."
+],
+[
+"Para entrares noutro computador sem repetir isto, confirma a palavra-passe do ReadFlow: a ligação ao Google é guardada cifrada e só abre com ela.",
+"To sign in on another computer without repeating this, confirm your ReadFlow password: the Google connection is stored encrypted and only opens with it.",
+"Чтобы входить на другом компьютере без повторения этого шага, подтверди пароль ReadFlow: подключение к Google хранится в зашифрованном виде и открывается только с ним.",
+"Damit du dich auf einem anderen Computer ohne Wiederholung anmelden kannst, bestätige dein ReadFlow-Passwort: Die Google-Verbindung wird verschlüsselt gespeichert und lässt sich nur damit öffnen."
+],
+[
+"Sincronizado",
+"Synced",
+"Синхронизировано",
+"Synchronisiert"
+],
+[
+"Usar só os da nuvem (apaga os deste computador)",
+"Use only the cloud data (deletes this computer's)",
+"Использовать только облачные (данные этого компьютера удаляются)",
+"Nur die Cloud-Daten verwenden (löscht die dieses Computers)"
+],
+[
+"Vai abrir-se o browser para autorizares o ReadFlow a guardar uma pasta privada no teu Google Drive. O ReadFlow nunca vê os teus outros ficheiros.",
+"Your browser will open so you can authorise ReadFlow to keep a private folder in your Google Drive. ReadFlow never sees your other files.",
+"Откроется браузер, чтобы ты разрешил ReadFlow хранить закрытую папку на твоём Google Диске. ReadFlow никогда не видит твои остальные файлы.",
+"Der Browser öffnet sich, damit du ReadFlow erlaubst, einen privaten Ordner in deinem Google Drive anzulegen. ReadFlow sieht deine anderen Dateien nie."
+],
+[
+"Sem ligação à internet. A cópia continua quando voltares a ter rede.",
+"No internet connection. The copy continues when you are back online.",
+"Нет подключения к интернету. Копирование продолжится, когда сеть появится.",
+"Keine Internetverbindung. Die Kopie läuft weiter, sobald du wieder online bist."
+],
+[
+"A ligação ao Google caiu. Liga o Google Drive outra vez.",
+"The connection to Google dropped. Connect Google Drive again.",
+"Подключение к Google прервано. Подключи Google Диск снова.",
+"Die Verbindung zu Google wurde unterbrochen. Verbinde Google Drive erneut."
+],
+[
+"O Google Drive não está ligado.",
+"Google Drive is not connected.",
+"Google Диск не подключён.",
+"Google Drive ist nicht verbunden."
+],
+[
+"A API do Google Drive não está ativada no projeto Google (ver o guia).",
+"The Google Drive API is not enabled in the Google project (see the guide).",
+"API Google Диска не включён в проекте Google (см. руководство).",
+"Die Google-Drive-API ist im Google-Projekt nicht aktiviert (siehe Anleitung)."
+],
+[
+"O teu Google Drive está cheio.",
+"Your Google Drive is full.",
+"Твой Google Диск заполнен.",
+"Dein Google Drive ist voll."
+],
+[
+"O Google pediu para abrandar. A app tenta mais tarde.",
+"Google asked to slow down. The app will try again later.",
+"Google просит притормозить. Приложение попробует позже.",
+"Google bittet um Verlangsamung. Die App versucht es später erneut."
+],
+[
+"O ID ou o segredo do Google em config-google.js não estão certos.",
+"The Google ID or secret in config-google.js is not correct.",
+"ID или секрет Google в config-google.js неверны.",
+"Die Google-ID oder das Geheimnis in config-google.js stimmt nicht."
+],
+[
+"Não deste autorização no Google.",
+"You did not give permission on Google.",
+"Ты не дал(а) разрешение в Google.",
+"Du hast bei Google keine Erlaubnis erteilt."
+],
+[
+"A autorização no Google demorou demasiado.",
+"The authorisation on Google took too long.",
+"Разрешение в Google заняло слишком много времени.",
+"Die Autorisierung bei Google hat zu lange gedauert."
+],
+[
+"O Google não deu a ligação permanente. Remove o ReadFlow em myaccount.google.com/permissions e tenta outra vez.",
+"Google did not give the permanent connection. Remove ReadFlow at myaccount.google.com/permissions and try again.",
+"Google не выдал постоянное подключение. Удали ReadFlow на myaccount.google.com/permissions и попробуй снова.",
+"Google hat die dauerhafte Verbindung nicht erteilt. Entferne ReadFlow unter myaccount.google.com/permissions und versuche es erneut."
+],
+[
+"O Google ainda não está configurado (ver o guia).",
+"Google is not set up yet (see the guide).",
+"Google ещё не настроен (см. руководство).",
+"Google ist noch nicht eingerichtet (siehe Anleitung)."
+],
+[
+"O Google está com problemas. Tenta mais tarde.",
+"Google is having problems. Try again later.",
+"У Google проблемы. Попробуй позже.",
+"Google hat Probleme. Versuche es später erneut."
+],
+[
+"Algo correu mal na cópia na nuvem. Tenta outra vez.",
+"Something went wrong with the cloud copy. Please try again.",
+"Что-то пошло не так с облачной копией. Попробуй ещё раз.",
+"Bei der Cloud-Kopie ist etwas schiefgelaufen. Bitte versuche es erneut."
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

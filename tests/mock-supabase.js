@@ -5,8 +5,8 @@ const uuid = () => crypto.randomUUID();
 
 function createMock(opts = {}) {
   const key = opts.key || 'test-key';
-  const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map(), covers: new Map() };
-  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false };
+  const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map(), covers: new Map(), vault: new Map() };
+  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false, noVault: false };
   const log = [];
 
   const res = (status, body) => ({ ok: status >= 200 && status < 300, status, text: async () => (body === undefined || body === null ? '' : JSON.stringify(body)) });
@@ -154,6 +154,12 @@ function createMock(opts = {}) {
         for (const s of secs) db.shared.delete(`${me}|${s}`);
         return res(204);
       }
+    }
+    if (path === '/rest/v1/vault') {
+      if (flags.noVault) return err(404, 'PGRST205', "Could not find the table 'public.vault' in the schema cache");
+      if (method === 'GET') { const row = db.vault.get(me); return res(200, row && eq(q.get('user_id')) === me ? [{ blob: row.blob }] : []); }
+      if (method === 'POST') { if (!body || body.user_id !== me) return err(403, '42501', 'new row violates row-level security policy'); if (String(body.blob || '').length > 4000) return err(400, '23514', 'check violation'); db.vault.set(me, { user_id: me, blob: body.blob }); return res(201); }
+      if (method === 'DELETE') { if (eq(q.get('user_id')) === me) db.vault.delete(me); return res(204); }
     }
     if (path === '/rest/v1/covers') {
       if (flags.noCovers) return err(404, 'PGRST205', "Could not find the table 'public.covers' in the schema cache");

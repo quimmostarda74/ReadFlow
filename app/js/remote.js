@@ -59,6 +59,7 @@
     }
   }
   async function localSignOut() {
+    if (root.RF.sync) root.RF.sync.onSignOut();
     session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = ''; serverCovers = null; coversOff = false;
     await S.deleteKV('auth');
   }
@@ -87,6 +88,7 @@
     try { await rpc('claim_profile', { p_name: name, p_number: number, p_display: (displayName || name).slice(0, 40), p_invite: String(invite || '').trim() }); }
     catch (e) { await localSignOut(); throw e; }
     await loadProfile(); await pushNow(true); await pull(true); startPolling();
+    if (root.RF.sync) root.RF.sync.onSignIn(state.user.uid, password);
     return state.user;
   }
   async function signIn(idText, password) {
@@ -95,6 +97,7 @@
     const r = await http('POST', '/auth/v1/token', { query: 'grant_type=password', body: { email: emailOf(id.name, id.number), password }, auth: false });
     await setSession(r);
     await loadProfile(); await pushNow(true); await pull(true); startPolling();
+    if (root.RF.sync) root.RF.sync.onSignIn(state.user.uid, password);
     return state.user;
   }
   async function signOut() {
@@ -116,7 +119,27 @@
       await pull(true);
     } catch (e) { if (e.code === 'network') state.offline = true; }
     startPolling();
+    if (root.RF.sync) root.RF.sync.onSignIn(session.uid, null);
   }
+
+  /* ---------- Cofre da ligação ao Google (cifrada no computador; o servidor só guarda texto ilegível) ---------- */
+  let vaultOff = false;
+  async function verifyPassword(password) {
+    const id = state.user && SOC.parseId(state.user.handle || '');
+    if (!id) return false;
+    try { await http('POST', '/auth/v1/token', { query: 'grant_type=password', body: { email: emailOf(id.name, id.number), password }, auth: false }); return true; } catch (e) { return false; }
+  }
+  async function vaultGet() {
+    if (vaultOff || !session) return null;
+    try { const rows = await rest('GET', 'vault', `select=blob&user_id=eq.${session.uid}`); return (rows && rows[0] && rows[0].blob) || null; }
+    catch (e) { if (e.code !== 'network') vaultOff = true; return null; }
+  }
+  async function vaultPut(blob) {
+    if (vaultOff || !session) return false;
+    try { await rest('POST', 'vault', 'on_conflict=user_id', { user_id: session.uid, blob, updated_at: new Date().toISOString() }, 'resolution=merge-duplicates'); return true; }
+    catch (e) { if (e.code !== 'network') vaultOff = true; return false; }
+  }
+  async function vaultDelete() { if (!session) return; try { await rest('DELETE', 'vault', `user_id=eq.${session.uid}`); } catch (e) { /* ok */ } }
 
   /* ---------- Enviar o meu perfil (só o que está ativo) ---------- */
   function avatarThumb() {
@@ -368,7 +391,7 @@
   RF.remote = {
     configured, signedIn: () => !!(session && state.user), state, cache, RemoteError, explain,
     signUp, signIn, signOut, deleteAccount, diagnose, restore, pull, pushNow, schedulePush, follow, unfollow, removeFollower, respond,
-    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, startPolling, stopPolling,
+    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
     setHooks: (h) => { hooks = { ...hooks, ...h }; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

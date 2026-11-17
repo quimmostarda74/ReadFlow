@@ -607,6 +607,44 @@
     }
   }
 
+  /** Cartão «Cópia na nuvem (Google Drive)»: ligar, estado, sincronizar, desligar e apagar a cópia. */
+  function cloudCard() {
+    const Y = RF.sync, R = RF.remote, st = Y.state;
+    const note = (txt, extra) => h('div', { class: 'stack' }, h('p', { class: 'muted small' }, txt), extra || null);
+    let body;
+    if (!Y.supported()) body = note(t('Disponível na versão instalada.'));
+    else if (!Y.configured()) body = note(t('O Google ainda não está configurado neste programa. Segue o guia docs\\NUVEM-GOOGLE-DRIVE.md.'));
+    else if (!R.signedIn()) body = note(t('Entra na tua conta em Amigos para guardares tudo na nuvem e o teres em qualquer computador.'), h('button', { class: 'btn', onClick: () => RF.app.go('friends') }, icon('users', 16), t('Ir para Amigos')));
+    else if (!st.connected) {
+      body = h('div', { class: 'stack' }, h('p', { class: 'muted small' }, t('Os teus livros, leituras, estantes, conquistas e imagens ficam guardados numa pasta privada do teu Google Drive e aparecem em qualquer computador onde entres na tua conta.')),
+        st.error ? h('p', { class: 'err-note' }, st.error) : null,
+        h('button', { class: 'btn primary', onClick: () => connectDialog() }, icon('upload', 16), t('Ligar ao Google Drive')));
+    } else {
+      body = h('div', { class: 'stack' },
+        h('div', { class: 'row between center wrap' }, h('div', { class: 'stack tight' }, h('div', { class: 'strong' }, t('Ligado ao Google Drive'), st.email ? ' · ' + st.email : ''), h('span', { class: 'muted small', id: 'cloud-status' }, Y.statusText())),
+          h('div', { class: 'row gap wrap' }, h('button', { class: 'btn', disabled: st.status === 'syncing', onClick: () => Y.syncNow({ manual: true }) }, icon('rotate', 16), t('Sincronizar agora')))),
+        st.progress ? UI.progressBar(st.progress.total ? st.progress.done / st.progress.total : 0.05) : null,
+        h('div', { class: 'row gap wrap' },
+          h('button', { class: 'btn', onClick: async () => { if (await UI.confirmDialog({ title: t('Desligar o Google Drive?'), message: t('Os teus dados continuam no Google Drive e neste computador. Deixam de ser sincronizados.'), confirmLabel: t('Desligar') })) { await Y.disconnect(); RF.app.refresh(); } } }, t('Desligar')),
+          h('button', { class: 'btn danger-text', onClick: async () => { if (await UI.confirmDialog({ title: t('Apagar a cópia na nuvem?'), message: t('Apaga tudo o que o ReadFlow guardou no teu Google Drive. Os dados deste computador não são apagados.'), confirmLabel: t('Apagar cópia'), danger: true })) { await Y.deleteCloud(); RF.app.refresh(); } } }, icon('trash', 16), t('Apagar cópia na nuvem'))));
+    }
+    return h('div', { class: 'card stack', id: 'cloud-card' }, h('h3', { class: 'row gap center' }, icon('upload', 16), t('Cópia na nuvem (Google Drive)')), body);
+  }
+  /** Pede a palavra-passe do ReadFlow (para guardar a ligação ao Google cifrada e poder entrar noutro computador sem repetir) e abre o Google. */
+  function connectDialog() {
+    UI.openModal((api) => {
+      const pw = h('input', { type: 'password', placeholder: t('Palavra-passe do ReadFlow') }), err = h('div', { class: 'err-note' });
+      const go = async (withPw) => {
+        if (withPw) { if (!(await RF.remote.verifyPassword(pw.value))) { err.textContent = t('Palavra-passe incorreta.'); return; } }
+        api.close(); await RF.sync.connect(withPw ? pw.value : null); RF.app.refresh();
+      };
+      return h('div', { class: 'dialog' }, UI.modalHeader(t('Ligar ao Google Drive'), api),
+        h('p', null, t('Vai abrir-se o browser para autorizares o ReadFlow a guardar uma pasta privada no teu Google Drive. O ReadFlow nunca vê os teus outros ficheiros.')),
+        h('p', { class: 'muted small' }, t('Para entrares noutro computador sem repetir isto, confirma a palavra-passe do ReadFlow: a ligação ao Google é guardada cifrada e só abre com ela.')), pw, err,
+        h('div', { class: 'row end gap' }, h('button', { class: 'btn', onClick: () => go(false) }, t('Agora não')), h('button', { class: 'btn primary', onClick: () => go(true) }, t('Continuar'))));
+    });
+  }
+
   function profile() {
     const st = S.state, s = st.settings, tt = L.totals(st.sessions);
     const finished = st.books.filter((b) => b.status === 'finished').length, favs = st.books.filter((b) => b.favorite);
@@ -616,8 +654,8 @@
       const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
       try {
         const data = JSON.parse(await f.text());
-        if (!(await UI.confirmDialog({ title: t('Importar cópia de segurança?'), message: t('Isto substitui todos os dados atuais.'), confirmLabel: t('Importar'), danger: true }))) return;
-        await S.importAll(data); RF.i18n.setLang(S.state.settings.lang); RF.app.applyTheme(); await RF.app.checkAchievements(true); RF.app.refresh();
+        if (!(await UI.confirmDialog({ title: t('Importar cópia de segurança?'), message: RF.sync.state.connected ? t('Isto substitui os dados deste computador e junta-os à cópia na nuvem.') : t('Isto substitui todos os dados atuais.'), confirmLabel: t('Importar'), danger: true }))) return;
+        await S.importAll(data); RF.i18n.setLang(S.state.settings.lang); RF.app.applyTheme(); await RF.app.checkAchievements(true); RF.app.refresh(); RF.sync.schedule(500);
       } catch (err) { UI.openModal((m) => h('div', { class: 'dialog' }, h('h2', null, t('Ficheiro inválido')), h('p', { class: 'muted' }, t('Escolhe um ficheiro de cópia de segurança criado pelo ReadFlow.')), h('div', { class: 'row end' }, h('button', { class: 'btn primary', onClick: () => m.close() }, t('OK'))))); }
     } });
     const bio = h('textarea', { rows: 3, maxLength: 280, placeholder: t('Escreve algo sobre ti: o que gostas de ler, o teu livro de sempre…'), onChange: async (e) => { s.bio = e.target.value.trim(); await save(); await RF.app.checkAchievements(); RF.app.refresh(); } }, s.bio || '');
@@ -647,6 +685,7 @@
       h('div', { class: 'card stack' }, h('h3', null, t('Atualizações')),
         h('div', { class: 'row between center wrap' }, h('div', { class: 'stack tight' }, h('div', null, t('Versão'), ' ', verEl), updEl),
           h('button', { class: 'btn', onClick: async () => { if (root.readflowApp) { const r = await root.readflowApp.checkUpdates(); if (r && r.status === 'unavailable') updEl.textContent = t('Disponível na versão instalada.'); } } }, icon('download', 16), t('Procurar atualizações')))),
+      cloudCard(),
       h('div', { class: 'card stack' }, h('h3', null, t('Dados')), h('p', { class: 'muted small' }, t('Os teus dados ficam guardados neste computador. Faz uma cópia de segurança de vez em quando.')),
         h('div', { class: 'row gap wrap' },
           h('button', { class: 'btn', onClick: async () => {
@@ -658,9 +697,9 @@
         h('div', { class: 'row gap wrap' },
           h('button', { class: 'btn', onClick: async () => { await S.loadSample(); await RF.app.checkAchievements(true); await RF.shelf.syncCosmetics(true); RF.app.refresh(); } }, icon('star', 16), t('Carregar dados de exemplo')),
           h('button', { class: 'btn danger-text', onClick: async () => {
-            if (await UI.confirmDialog({ title: t('Apagar todos os dados?'), message: t('Livros, sessões, prateleiras e conquistas serão removidos. Esta ação não pode ser desfeita.'), confirmLabel: t('Apagar tudo'), danger: true })) {
+            if (await UI.confirmDialog({ title: t('Apagar todos os dados?'), message: RF.sync.state.connected ? t('Livros, sessões, prateleiras e conquistas serão removidos, também da cópia na nuvem e dos teus outros computadores. Esta ação não pode ser desfeita.') : t('Livros, sessões, prateleiras e conquistas serão removidos. Esta ação não pode ser desfeita.'), confirmLabel: t('Apagar tudo'), danger: true })) {
               if (RF.session.active) await RF.session.reset();
-              await S.wipe(); RF.i18n.setLang('pt'); RF.app.applyTheme(); RF.app.refresh();
+              await S.wipe(); RF.i18n.setLang('pt'); RF.app.applyTheme(); RF.app.refresh(); RF.sync.schedule(500);
             }
           } }, icon('trash', 16), t('Apagar todos os dados')))),
       h('p', { class: 'muted small center-text' }, t('ReadFlow {v} · versão para computador', { v: APP_VERSION })));

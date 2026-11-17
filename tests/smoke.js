@@ -520,5 +520,7 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   // Exportar / importar mantém definições novas
   const dump = await S.exportAll(); await S.importAll(JSON.parse(JSON.stringify(dump))); ok('exportar e importar');
   await S.wipe(); RF.app.go('home'); ok('apagar tudo');
+  await require('./drive-test').run(ok);
+  await require('./cloud').run({ RF, M, ok, walk, text, roots, sleep });
   if (H.errs()) throw new Error('console.error chamado ' + H.errs() + ' vezes'); console.log('\nTUDO OK'); process.exit(0);
 })().catch((e) => { console.error('FALHOU:', e); process.exit(1); });

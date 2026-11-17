@@ -47,7 +47,7 @@ global.indexedDB = { open() { const req = {}; setTimeout(() => {
       setTimeout(() => t.oncomplete && t.oncomplete(), 0); return t; } };
   req.result = db; req.onupgradeneeded && req.onupgradeneeded(); req.onsuccess && req.onsuccess(); }, 0); return req; } };
 
-for (const f of ['logic', 'i18n', 'i18n-data', 'config', 'changelog', 'store', 'components', 'layout', 'catalog', 'social', 'remote', 'shelf', 'dialogs', 'session', 'views', 'app']) require(path + f + '.js');
+for (const f of ['logic', 'i18n', 'i18n-data', 'config', 'config-google', 'changelog', 'store', 'components', 'layout', 'catalog', 'social', 'remote', 'sync', 'shelf', 'dialogs', 'session', 'views', 'app']) require(path + f + '.js');
 const RF = globalThis.RF;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ok = (m) => console.log('OK   ' + m);

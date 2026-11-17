@@ -43,3 +43,6 @@ Ao desligar uma secção, ela é **apagada** do servidor; as miniaturas das capa
 - As capas dos livros dos amigos são geradas (cor + título); sincronizar capas reais exige armazenamento de ficheiros.
 - Notificações só dentro da app (avisos quando alguém pede para seguir ou aceita).
 - Plano gratuito do Supabase: 500 MB de base de dados e pausa após uma semana sem uso. Para uso contínuo, o plano Pro resolve.
+
+## Cópia dos dados na nuvem
+Os dados de cada pessoa (livros, leituras, estantes, imagens) não passam pelo servidor dos amigos: ficam no Google Drive dela. Ver `docs/NUVEM-GOOGLE-DRIVE.md`. O servidor guarda apenas, para a ligação ao Google noutro computador, um texto cifrado no computador da pessoa (tabela `vault`).

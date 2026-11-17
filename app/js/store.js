@@ -26,8 +26,17 @@
     return m;
   };
 
+  /* ---------- Cópia na nuvem: carimbos de alteração, registo de apagados e avisos ---------- */
+  // Definições que ficam em cada computador/conta e nunca viajam para a nuvem.
+  const SETTINGS_LOCAL = ['id', 'handleName', 'handleNumber', 'lastSeenVersion', 'toastedVersion', 'social', 'cloudUid', 'updatedAt'];
+  const syncableSettings = (s) => { const o = {}; for (const k of Object.keys(s)) if (!SETTINGS_LOCAL.includes(k)) o[k] = s[k]; return o; };
+  const stable = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((a, key) => { a[key] = x[key]; return a; }, {}) : x));
+  const listeners = [];
+  const onChange = (fn) => { listeners.push(fn); };
+  const changed = () => { for (const f of listeners) { try { f(); } catch (e) { /* um ouvinte com erro não pára a app */ } } };
+
   const state = {
-    books: [], sessions: [], shelves: [],
+    books: [], sessions: [], shelves: [], tombstones: {}, settingsHash: '',
     unlocked: new Map(),          // id da conquista -> data
     settings: { ...DEFAULT_SETTINGS },
     imageUrls: new Map()          // id da imagem -> URL local
@@ -71,6 +80,11 @@
     const kv = await all('kv');
     const settings = kv.find((k) => k.id === 'settings');
     state.settings = mergeSettings(settings);
+    state.settingsHash = stable(syncableSettings(state.settings));
+    const tomb = kv.find((k) => k.id === 'tombstones');
+    state.tombstones = (tomb && tomb.items) || {};
+    const cutoff = Date.now() - 400 * 86400000;
+    for (const [id, tmb] of Object.entries(state.tombstones)) if (tmb.at < cutoff) delete state.tombstones[id];
     if (settings && !settings.privacyV2) await saveSettings();
     for (const img of await all('images')) state.imageUrls.set(img.id, URL.createObjectURL(img.blob));
     return kv.find((k) => k.id === 'active') || null;
@@ -92,6 +106,12 @@
     state.imageUrls.delete(id);
     await del('images', id);
   }
+  const hasImage = (id) => state.imageUrls.has(id);
+  async function restoreImage(id, blob) {
+    await put('images', { id, blob });
+    const old = state.imageUrls.get(id); if (old) URL.revokeObjectURL(old);
+    state.imageUrls.set(id, URL.createObjectURL(blob));
+  }
   async function getImageBlob(id) {
     const rows = await run('images', 'readonly', (s) => s.get(id));
     return rows ? rows.blob : null;
@@ -112,7 +132,8 @@
       genre: '', favorite: false, recommend: false, recNote: '', boughtAt: '', ...fields
     };
   }
-  async function saveBook(book) { upsert(state.books, book); await put('books', book); }
+  async function addTombstone(id, kind) { state.tombstones[id] = { k: kind, at: Date.now() }; await put('kv', { id: 'tombstones', items: state.tombstones }); }
+  async function saveBook(book) { book.updatedAt = Date.now(); upsert(state.books, book); await put('books', book); changed(); }
 
   async function deleteBook(id) {
     const book = getBook(id);
@@ -122,21 +143,24 @@
     await removeImage(book.spineId);
     state.books = state.books.filter((b) => b.id !== id);
     await del('books', id);
+    await addTombstone(id, 'b'); changed();
   }
 
-  async function saveSession(session) { upsert(state.sessions, session); await put('sessions', session); }
+  async function saveSession(session) { session.updatedAt = Date.now(); upsert(state.sessions, session); await put('sessions', session); changed(); }
   async function deleteSession(id) {
     const s = state.sessions.find((x) => x.id === id);
     if (!s) return;
     await removeImage(s.photoId);
     state.sessions = state.sessions.filter((x) => x.id !== id);
     await del('sessions', id);
+    await addTombstone(id, 's'); changed();
   }
 
-  async function saveShelf(shelf) { upsert(state.shelves, shelf); await put('shelves', shelf); }
+  async function saveShelf(shelf) { shelf.updatedAt = Date.now(); upsert(state.shelves, shelf); await put('shelves', shelf); changed(); }
   async function deleteShelf(id) {
     state.shelves = state.shelves.filter((s) => s.id !== id);
     await del('shelves', id);
+    await addTombstone(id, 'h'); changed();
     for (const b of state.books) {
       if (b.shelfIds.includes(id)) { b.shelfIds = b.shelfIds.filter((x) => x !== id); await put('books', b); }
     }
@@ -148,9 +172,15 @@
       state.unlocked.set(a.id, at);
       await put('unlocked', { id: a.id, at });
     }
+    changed();
   }
 
-  async function saveSettings() { await put('kv', { ...state.settings, id: 'settings' }); }
+  async function saveSettings() {
+    const h = stable(syncableSettings(state.settings)), real = h !== state.settingsHash;   // só conta como alteração o que viaja para a nuvem
+    if (real) { state.settings.updatedAt = Date.now(); state.settingsHash = h; }
+    await put('kv', { ...state.settings, id: 'settings' });
+    if (real) changed();
+  }
   async function getKV(id) { const all_ = await all('kv'); return all_.find((k) => k.id === id) || null; }
   async function putKV(obj) { await put('kv', obj); }
   async function deleteKV(id) { await del('kv', id); }
@@ -190,11 +220,29 @@
   }
 
   async function wipe() {
+    const gone = {};
+    for (const [list, k] of [[state.books, 'b'], [state.sessions, 's'], [state.shelves, 'h']]) for (const x of list) gone[x.id] = { k, at: Date.now() };
     for (const url of state.imageUrls.values()) URL.revokeObjectURL(url);
     for (const name of STORES) await clear(name);
+    state.tombstones = { ...state.tombstones, ...gone };
+    await put('kv', { id: 'tombstones', items: state.tombstones });
     state.books = []; state.sessions = []; state.shelves = [];
     state.unlocked = new Map(); state.imageUrls = new Map();
     state.settings = mergeSettings(null);
+    state.settings.updatedAt = Date.now();                       // «apagar tudo» também repõe as definições, na nuvem incluída
+    state.settingsHash = stable(syncableSettings(state.settings));
+    await put('kv', { ...state.settings, id: 'settings' });
+    changed();
+  }
+
+  /** Limpa os dados deste computador SEM os marcar como apagados (usado ao trocar para os dados da nuvem). */
+  async function resetLocal() {
+    for (const url of state.imageUrls.values()) URL.revokeObjectURL(url);
+    for (const name of STORES) await clear(name);
+    state.books = []; state.sessions = []; state.shelves = []; state.tombstones = {};
+    state.unlocked = new Map(); state.imageUrls = new Map();
+    state.settings = mergeSettings(null); state.settingsHash = stable(syncableSettings(state.settings));
+    await put('kv', { ...state.settings, id: 'settings' });
   }
 
   async function importAll(data) {
@@ -210,7 +258,29 @@
     for (const s of data.shelves || []) await saveShelf(s);
     for (const u of data.unlocked || []) { state.unlocked.set(u.id, u.at); await put('unlocked', u); }
     state.settings = mergeSettings(data.settings);
+    for (const x of [...state.books, ...state.sessions, ...state.shelves]) delete state.tombstones[x.id];   // o que foi importado não conta como apagado
+    await put('kv', { id: 'tombstones', items: state.tombstones });
+    state.settingsHash = '';
     await saveSettings();
+  }
+
+  /** Aplica à base de dados local o resultado de uma fusão com a nuvem (não gera carimbos nem avisos). */
+  async function applyDoc(doc, localSettingsKeep) {
+    const sameJson = (a, b) => stable(a) === stable(b);
+    const sync = async (store, key, next) => {
+      const keep = new Set(next.map((x) => x.id)), cur = new Map(state[key].map((x) => [x.id, x]));
+      for (const x of state[key]) if (!keep.has(x.id)) await del(store, x.id);
+      for (const x of next) if (!cur.has(x.id) || !sameJson(cur.get(x.id), x)) await put(store, x);
+      state[key] = next;
+    };
+    await sync('books', 'books', doc.books); await sync('sessions', 'sessions', doc.sessions); await sync('shelves', 'shelves', doc.shelves);
+    for (const u of doc.unlocked) if (state.unlocked.get(u.id) !== u.at) { state.unlocked.set(u.id, u.at); await put('unlocked', u); }
+    state.tombstones = doc.tombstones || {};
+    await put('kv', { id: 'tombstones', items: state.tombstones });
+    const keepLocal = {}; for (const k of SETTINGS_LOCAL) if (k in state.settings) keepLocal[k] = state.settings[k];
+    state.settings = mergeSettings({ ...doc.settings, ...keepLocal, ...(localSettingsKeep || {}), updatedAt: doc.settings.updatedAt || 0 });
+    state.settingsHash = stable(syncableSettings(state.settings));
+    await put('kv', { ...state.settings, id: 'settings' });
   }
 
   /* ---------- Dados de exemplo ---------- */
@@ -266,6 +336,7 @@
   RF.store = {
     state, init, imgUrl, addImage, removeImage, getBook, newBook, saveBook, deleteBook,
     saveSession, deleteSession, saveShelf, deleteShelf, unlock, saveSettings, saveActive, clearActive, getKV, putKV, deleteKV,
-    exportAll, importAll, wipe, loadSample, dataUrlToBlob
+    exportAll, importAll, wipe, loadSample, dataUrlToBlob,
+    onChange, applyDoc, resetLocal, hasImage, restoreImage, getImageBlob, SETTINGS_LOCAL, syncableSettings, stable
   };
 })(typeof window !== 'undefined' ? window : globalThis);
