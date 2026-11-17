@@ -57,10 +57,49 @@ function setupUpdater() {
 // A ligação ao Google fica guardada cifrada pelo Windows (safeStorage), uma por conta do ReadFlow.
 const { safeStorage } = require('electron');
 const tokenFile = (uid) => path.join(app.getPath('userData'), 'drive-' + String(uid).replace(/[^a-zA-Z0-9-]/g, '') + '.bin');
+
 const tokenStore = {
-  async load(uid) { try { return JSON.parse(safeStorage.decryptString(fs.readFileSync(tokenFile(uid)))); } catch (e) { return null; } },
-  async save(uid, value) { if (safeStorage.isEncryptionAvailable()) fs.writeFileSync(tokenFile(uid), safeStorage.encryptString(JSON.stringify(value))); },
-  async remove(uid) { try { fs.unlinkSync(tokenFile(uid)); } catch (e) { /* já não existia */ } }
+  async load(uid) {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) {
+        const err = new Error('O armazenamento seguro do sistema não está disponível.');
+        err.code = 'secure_storage_unavailable';
+        throw err;
+      }
+      const file = tokenFile(uid);
+      if (!fs.existsSync(file)) return null;
+      return JSON.parse(safeStorage.decryptString(fs.readFileSync(file)));
+    } catch (e) {
+      if (e.code === 'secure_storage_unavailable') throw e;
+      if (e instanceof SyntaxError) {
+        const err = new Error('O ficheiro da ligação Google está danificado.');
+        err.code = 'token_store_corrupt';
+        throw err;
+      }
+      return null;
+    }
+  },
+
+  async save(uid, value) {
+    if (!safeStorage.isEncryptionAvailable()) {
+      const err = new Error('O armazenamento seguro do sistema não está disponível. A ligação Google não pode ser guardada neste computador.');
+      err.code = 'secure_storage_unavailable';
+      throw err;
+    }
+
+    const file = tokenFile(uid);
+    const encrypted = safeStorage.encryptString(JSON.stringify(value));
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, encrypted);
+  },
+
+  async remove(uid) {
+    try {
+      fs.unlinkSync(tokenFile(uid));
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+    }
+  }
 };
 const drive = createDrive({ fetch: (...a) => fetch(...a), openExternal: (url) => shell.openExternal(url), tokenStore });
 const driveCall = (fn) => async (_event, ...args) => {
