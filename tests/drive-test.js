@@ -1,3 +1,4 @@
+
 // Testes do módulo do Google Drive (processo principal) com um «Google» falso em memória.
 const crypto = require('crypto');
 const http = require('http');
@@ -16,7 +17,7 @@ function fakeGoogle() {
     g.log.push(method + ' ' + u.pathname);
     if (u.origin + u.pathname === 'https://oauth2.googleapis.com/token') {
       const p = new URLSearchParams(init.body);
-      if (p.get('client_id') !== 'CID' || p.get('client_secret') !== 'SEC') return json(401, { error: 'invalid_client' });
+      if (p.get('client_id') !== 'CID') return json(401, { error: 'invalid_client' });
       if (p.get('grant_type') === 'authorization_code') {
         const c = g.codes.get(p.get('code'));
         if (!c || b64url(crypto.createHash('sha256').update(p.get('code_verifier') || '').digest()) !== c.challenge || p.get('redirect_uri') !== c.redirect) return json(400, { error: 'invalid_grant' });
@@ -89,7 +90,7 @@ async function run(ok) {
   let d = mk();
 
   await rejects(() => d.connect(), 'not_configured', 'sem configuração');
-  d.configure({ clientId: 'CID', clientSecret: 'SEC' });
+  d.configure({ clientId: 'CID' });
   await rejects(() => d.connect(), 'no_user', 'sem utilizador');
   ok('Google: sem configuração ou sem conta, a ligação recusa com um erro claro');
 
@@ -102,21 +103,21 @@ async function run(ok) {
   ok('Google: autorização com PKCE (S256), só a pasta privada da app, servidor local 127.0.0.1 e ligação guardada');
 
   await d.disconnect(); await d.setUser('u1');
-  d = mk({ openExternal: fakeBrowser(g, { badState: true }) }); d.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d.setUser('u1');
+  d = mk({ openExternal: fakeBrowser(g, { badState: true }) }); d.configure({ clientId: 'CID' }); await d.setUser('u1');
   must((await d.connect()).connected && g.badStateStatus === 400, 'um pedido com «state» errado devia ser recusado (400) sem estragar a ligação');
   ok('Google: pedidos de retorno com «state» errado são recusados');
 
-  d = mk({ openExternal: fakeBrowser(g, { denied: true }) }); d.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d.setUser('u2');
+  d = mk({ openExternal: fakeBrowser(g, { denied: true }) }); d.configure({ clientId: 'CID' }); await d.setUser('u2');
   await rejects(() => d.connect(), 'denied', 'recusar no Google');
-  d = mk({ openExternal: fakeBrowser(g, { nothing: true }), loopbackTimeoutMs: 250 }); d.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d.setUser('u2');
+  d = mk({ openExternal: fakeBrowser(g, { nothing: true }), loopbackTimeoutMs: 250 }); d.configure({ clientId: 'CID' }); await d.setUser('u2');
   await rejects(() => d.connect(), 'timeout', 'demora');
-  g.noRefresh = true; d = mk(); d.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d.setUser('u2');
+  g.noRefresh = true; d = mk(); d.configure({ clientId: 'CID' }); await d.setUser('u2');
   await rejects(() => d.connect(), 'no_refresh', 'sem ligação permanente'); g.noRefresh = false;
-  d = mk(); d.configure({ clientId: 'CID', clientSecret: 'ERRADO' }); await d.setUser('u2');
-  await rejects(() => d.connect(), 'bad_client', 'chave do cliente errada');
-  ok('Google: recusa, demora, ausência de «refresh token» e chave errada dão erros distintos');
+  d = mk(); d.configure({ clientId: 'ERRADO' }); await d.setUser('u2');
+  await rejects(() => d.connect(), 'bad_client', 'Client ID errado');
+  ok('Google: recusa, demora, ausência de «refresh token» e Client ID errado dão erros distintos');
 
-  d = mk(); d.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d.setUser('u1');
+  d = mk(); d.configure({ clientId: 'CID' }); await d.setUser('u1');
   must((await d.status()).connected, 'a ligação guardada devia ser restaurada num novo arranque');
   const bin = Buffer.from(Array.from({ length: 256 }, (_, i) => i));
   await d.write('img-a', bin, 'image/jpeg'); await d.write('readflow-data.json', Buffer.from('{"v":1,"nome":"Introdução"}'), 'application/json');
@@ -134,7 +135,7 @@ async function run(ok) {
 
   g.expireAccess(); const before = g.log.filter((x) => x.includes('/token')).length;
   must(Buffer.compare(await d.read('img-a'), bin) === 0, 'depois de expirar o acesso'); must(g.log.filter((x) => x.includes('/token')).length > before, 'devia renovar o acesso sozinho');
-  g.expireAccess(); g.access.add('FORCADO');   // 401 a meio do pedido
+  g.expireAccess(); g.access.add('FORCADO');
   ok('Google: o acesso expirado é renovado automaticamente');
 
   g.fail = { status: 403, reason: 'accessNotConfigured', message: 'Google Drive API has not been used in project' }; await rejects(() => d.list(), 'api_disabled', 'API desligada');
@@ -145,29 +146,27 @@ async function run(ok) {
   ok('Google: erros (API desligada, Drive cheio, limite de pedidos, servidor, rede) têm códigos próprios');
 
   const blob = await d.exportToken('segredo123'); must(!blob.includes('RT') && /^v1\./.test(blob), 'o blob não pode conter o token em claro');
-  const d2 = mk(); d2.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d2.setUser('u1'); await d2.disconnect(); await d2.setUser('u1');
-  // o disconnect anterior revogou o token deste utilizador; liga de novo para o teste do cofre
-  const d3 = mk(); d3.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d3.setUser('u9'); await d3.connect();
+  const d2 = mk(); d2.configure({ clientId: 'CID' }); await d2.setUser('u1'); await d2.disconnect(); await d2.setUser('u1');
+  const d3 = mk(); d3.configure({ clientId: 'CID' }); await d3.setUser('u9'); await d3.connect();
   const sealed = await d3.exportToken('palavra-passe');
-  const d4 = mk(); d4.configure({ clientId: 'CID', clientSecret: 'SEC' }); await d4.setUser('u9');
+  const d4 = mk(); d4.configure({ clientId: 'CID' }); await d4.setUser('u9');
   await d4.disconnect(); g.refresh.set(store.m.get('u9') ? store.m.get('u9').refresh : 'x', true);
-  await d4.setUser('u9'); must(!(await d4.status()).connected, 'ainda desligado'); 
-  // novo «computador» sem token: importa o cofre com a palavra-passe certa
-  const dNew = mk(); dNew.configure({ clientId: 'CID', clientSecret: 'SEC' }); await dNew.setUser('u9');
+  await d4.setUser('u9'); must(!(await d4.status()).connected, 'ainda desligado');
+  const dNew = mk(); dNew.configure({ clientId: 'CID' }); await dNew.setUser('u9');
   g.refresh.set(openToken('u9', 'palavra-passe', sealed).r, true);
   await rejects(() => dNew.importToken(sealed, 'errada'), 'bad_password', 'palavra-passe errada');
-  const dOther = mk(); dOther.configure({ clientId: 'CID', clientSecret: 'SEC' }); await dOther.setUser('outro');
+  const dOther = mk(); dOther.configure({ clientId: 'CID' }); await dOther.setUser('outro');
   await rejects(() => dOther.importToken(sealed, 'palavra-passe'), 'bad_password', 'conta diferente');
   must((await dNew.importToken(sealed, 'palavra-passe')).connected, 'palavra-passe certa devia ligar');
   await dNew.list();
   ok('Cofre: a ligação ao Google viaja cifrada (AES-GCM) e só abre com a palavra-passe do ReadFlow da mesma conta');
 
-  g.access.clear(); g.refresh.clear();           // o Google revoga o acesso
-  const dr = mk(); dr.configure({ clientId: 'CID', clientSecret: 'SEC' }); await dr.setUser('u9');
+  g.access.clear(); g.refresh.clear();
+  const dr = mk(); dr.configure({ clientId: 'CID' }); await dr.setUser('u9');
   await rejects(() => dr.list(), 'auth', 'acesso revogado'); must(!(await dr.status()).connected && !store.m.has('u9'), 'depois de revogado fica desligado e sem token guardado');
   ok('Google: se o acesso for revogado, a app fica desligada e apaga o token guardado');
 
-  const dw = mk(); dw.configure({ clientId: 'CID', clientSecret: 'SEC' }); await dw.setUser('u7'); await dw.connect();
+  const dw = mk(); dw.configure({ clientId: 'CID' }); await dw.setUser('u7'); await dw.connect();
   const n = await dw.wipeAll(); must(n > 1000 && (await dw.list()).length === 0, 'apagar tudo: ' + n);
   const r0 = g.revoked.length; await dw.disconnect(); must(g.revoked.length === r0 + 1 && !store.m.has('u7'), 'desligar revoga no Google e apaga o token local');
   ok('Google: «apagar cópia» remove tudo da pasta da app e desligar revoga o acesso');
