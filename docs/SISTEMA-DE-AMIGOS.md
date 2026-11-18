@@ -46,3 +46,7 @@ Ao desligar uma secção, ela é **apagada** do servidor; as miniaturas das capa
 
 ## Cópia dos dados na nuvem
 Os dados de cada pessoa (livros, leituras, estantes, imagens) não passam pelo servidor dos amigos: ficam no Google Drive dela. Ver `docs/NUVEM-GOOGLE-DRIVE.md`. O servidor guarda apenas, para a ligação ao Google noutro computador, um texto cifrado no computador da pessoa (tabela `vault`).
+
+## Introdução Geral, notas e fotografias das leituras (1.8)
+- O que a pessoa escreve na **Introdução Geral** de um livro viaja completo (até 20 000 caracteres): um excerto de 500 caracteres no perfil e o texto inteiro na tabela `covers` (chave `i-<livro>`), que o leitor descarrega ao abrir a ficha do livro.
+- A **atividade** pode incluir a nota escrita numa leitura (até 1 500 caracteres) e uma fotografia reduzida (chave `p-<leitura>`, até 420 px). Opção **Notas e fotos das leituras na atividade** em Amigos > Privacidade (ligada por defeito; só funciona com «Atividade de leitura» ligada). Ao desligar, as notas deixam de ir e as miniaturas são apagadas do servidor.

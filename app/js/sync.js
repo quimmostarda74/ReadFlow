@@ -38,6 +38,9 @@
     for (const src of [a.xpLedger || {}, b.xpLedger || {}]) for (const [k, v] of Object.entries(src)) led[k] = Math.max(led[k] || 0, Number(v) || 0);
     m.xpLedger = led;
     if (Array.isArray(a.seenCosmetics) || Array.isArray(b.seenCosmetics)) m.seenCosmetics = [...new Set([...(a.seenCosmetics || []), ...(b.seenCosmetics || [])])];
+    const ord = { ...(a.shelfOrder || {}) };                       // ordem das prateleiras: cada secção ganha pela sua hora
+    for (const [k, v] of Object.entries(b.shelfOrder || {})) if (!ord[k] || (v.at || 0) >= (ord[k].at || 0)) ord[k] = v;
+    m.shelfOrder = ord;
     m.updatedAt = Math.max(stamp(a), stamp(b));
     return m;
   }

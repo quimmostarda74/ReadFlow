@@ -63,9 +63,12 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   if (M.db.profiles.size !== 1 || M.db.shared.size !== 8) throw new Error('secções partilhadas: ' + M.db.shared.size);
   const uidA = [...M.db.profiles.keys()][0];
   const rawShared = JSON.stringify([...M.db.shared.values()]);
-  if (rawShared.includes('nota privada')) throw new Error('as notas privadas foram enviadas ao servidor!');
+  if (!rawShared.includes('nota privada')) throw new Error('a nota da leitura devia ir na atividade (opção ligada por defeito)');
   if (/"coverId"|"spineId"|"photoId"|"id":/.test(rawShared)) throw new Error('foram enviados campos internos');
-  ok('criar conta: ID ' + ua.handle + ', 8 secções enviadas, sem notas nem campos internos');
+  S.state.settings.privacy.activityNotes = false; await R.pushNow(true);
+  if (JSON.stringify([...M.db.shared.values()]).includes('nota privada')) throw new Error('com «Notas e fotos» desligado as notas não podem sair!');
+  S.state.settings.privacy.activityNotes = true; await R.pushNow(true);
+  ok('criar conta: ID ' + ua.handle + ', 8 secções enviadas, sem campos internos; a nota da leitura segue na atividade e deixa de ir se a opção for desligada');
   S.state.settings.privacy.stats = false; await R.pushNow();
   if (M.db.shared.has(uidA + '|stats') || M.db.shared.size !== 7) throw new Error('desligar uma secção devia apagá-la do servidor');
   ok('desligar uma secção apaga-a do servidor');
@@ -232,6 +235,7 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   // ===== Versão 1.4 =====
   roots[1].children = [];
   const SOCm = RF.social, Lg = RF.logic;
+  const cls1 = (n, k) => String((n && n.className) || '').split(' ').includes(k);
   const clickBtn = (root_, label) => { const b = walk(root_).find((n) => n.tagName === 'BUTTON' && text(n).trim() === label); if (!b) throw new Error('botão não encontrado: ' + label); b.listeners.click[0]({ target: b, stopPropagation() {} }); return b; };
   // (1) notas, avaliações e capas que os amigos veem
   M.db.shared.set(`${mariaId}|reading`, { user_id: mariaId, section: 'reading', payload: [{ title: 'Rd 0', author: 'Z', note: '', color: '#8C2F39', rating: 4, review: 'Gostei muito', ck: 'cov-1', sk: 'sp-1', pages: 280 }] });
@@ -453,6 +457,93 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   const rcov = walk(roots[0]).find((n) => n.className.split(' ').includes('rec-card')); const rc = walk(rcov).find((n) => n.className.split(' ').includes('cover'));
   rc.listeners.click[0](); await sleep(100); if (!/Introdução Geral/.test(text(roots[1]))) throw new Error('ficha a partir das recomendações'); roots[1].children = [];
   ok('capa nas recomendações dos amigos abre a ficha do livro');
+
+
+  // ===== Versão 1.8 =====
+  roots[1].children = []; R.api.resetCovers(); R.api.thumbProvider = async () => 'data:image/jpeg;base64,/9j/CCCC';
+  const Lz = RF.logic;
+  // (1) Introdução Geral longa: o excerto vai no perfil e o texto completo à parte
+  const LONG = 'Início. ' + 'Linha de texto longa. '.repeat(250) + 'FIM-DO-TEXTO';
+  const bLong = S.newBook({ title: 'Livro Longo', author: 'L', totalPages: 400, status: 'reading', notes: LONG }); await S.saveBook(bLong);
+  const bShort = S.newBook({ title: 'Livro Curto', author: 'S', totalPages: 100, status: 'reading', notes: 'Introdução curta.' }); await S.saveBook(bShort);
+  await R.pushNow(true);
+  const rd = M.db.shared.get(`${meId}|reading`).payload, pl = rd.find((x) => x.title === 'Livro Longo'), ps = rd.find((x) => x.title === 'Livro Curto');
+  if (pl.review.length !== 500 || pl.rk !== 'i-' + bLong.id || M.db.covers.get(`${meId}|i-${bLong.id}`).data !== LONG.slice(0, 20000)) throw new Error('Introdução longa: excerto + texto completo à parte');
+  if (ps.review !== 'Introdução curta.' || 'rk' in ps || M.db.covers.has(`${meId}|i-${bShort.id}`)) throw new Error('introdução curta vai só no perfil');
+  S.state.settings.privacy.reviews = false; await R.pushNow(true);
+  if (M.db.covers.has(`${meId}|i-${bLong.id}`) || 'review' in M.db.shared.get(`${meId}|reading`).payload[0]) throw new Error('sem «Introdução Geral e avaliações» nada sai');
+  S.state.settings.privacy.reviews = true; await R.pushNow(true);
+  M.db.shared.set(`${mariaId}|reading`, { user_id: mariaId, section: 'reading', payload: [{ title: 'Livro Longo M', author: 'M', note: '', color: '#2F4858', review: LONG.slice(0, 500), rk: 'i-longm', pages: 400 }, { title: 'Livro Longo N', author: 'N', note: '', color: '#2F4858', review: LONG.slice(0, 500), rk: 'i-longn', pages: 400 }] });
+  M.seedCover(mariaId, 'i-longm', LONG);
+  await R.pull(true); RF.app.go('friend:maria#204819'); await sleep(80);
+  walk(roots[0]).find((n) => cls1(n, 'thumb') && String((n.attrs || {}).title || '').startsWith('Livro Longo M')).listeners.click[0](); await sleep(150);
+  const bookModal = roots[1], introEl = walk(bookModal).find((n) => cls1(n, 'intro-text'));
+  if (!introEl || !/FIM-DO-TEXTO/.test(text(introEl)) || !cls1(introEl, 'scrollable') || introEl.attrs.tabindex !== '0' || !/Usa a roda do rato/.test(text(bookModal))) throw new Error('a ficha devia mostrar o texto completo, com rolagem e dica');
+  roots[1].children = []; M.flags.noCovers = true;
+  walk(roots[0]).find((n) => cls1(n, 'thumb') && String((n.attrs || {}).title || '').startsWith('Livro Longo N')).listeners.click[0](); await sleep(150);
+  if (!/Início\./.test(text(roots[1])) || /FIM-DO-TEXTO/.test(text(roots[1]))) throw new Error('sem o texto completo, mostra o excerto'); M.flags.noCovers = false; roots[1].children = [];
+  ok('Introdução Geral longa: excerto no perfil, texto completo à parte (com privacidade), ficha com rolagem e sem estragar se o texto não chegar');
+  // (2) notas e fotos das leituras na atividade
+  const phId = await S.addImage(new Blob([new Uint8Array([0xFF, 0xD8, 0xFF, 7, 7])], { type: 'image/jpeg' }));
+  const sessN = { id: Lz.uid(), bookId: bLong.id, start: Date.now() - 600000, end: Date.now(), durationSeconds: 600, startPage: 10, endPage: 22, notes: 'Capítulo 3: adorei o final.', photoId: phId, unlocked: [], manual: true }; await S.saveSession(sessN);
+  await R.pushNow(true);
+  let act = M.db.shared.get(`${meId}|activity`).payload.find((a) => a.pages === 12);
+  if (!act || act.note !== 'Capítulo 3: adorei o final.' || act.pk !== 'p-' + sessN.id || !M.db.covers.has(`${meId}|p-${sessN.id}`)) throw new Error('atividade com nota e fotografia: ' + JSON.stringify(act));
+  if (/photoId|"sid"/.test(JSON.stringify(act))) throw new Error('não vão ids internos');
+  S.state.settings.privacy.activityNotes = false; await R.pushNow(true);
+  act = M.db.shared.get(`${meId}|activity`).payload.find((a) => a.pages === 12);
+  if ('note' in act || 'pk' in act || M.db.covers.has(`${meId}|p-${sessN.id}`)) throw new Error('com a opção desligada não sai nota nem fotografia (e a miniatura é apagada)');
+  S.state.settings.privacy.activityNotes = true; S.state.settings.privacy.activity = false; await R.pushNow(true);
+  if (M.db.shared.has(`${meId}|activity`) || M.db.covers.has(`${meId}|p-${sessN.id}`)) throw new Error('sem atividade, nada sai'); S.state.settings.privacy.activity = true; await R.pushNow(true);
+  const NOTE_LONG = 'Muito bom. ' + 'Esta parte é comprida. '.repeat(30);
+  M.db.shared.set(`${mariaId}|activity`, { user_id: mariaId, section: 'activity', payload: [{ book: 'Rd 0', minutes: 30, pages: 20, when: Date.now() - 1000, unlocked: [], note: NOTE_LONG, pk: 'p-ph1' }, { book: 'Rd 0', minutes: 5, pages: 3, when: Date.now() - 5000, unlocked: [], note: 'Nota curta da Maria' }] });
+  M.seedCover(mariaId, 'p-ph1', 'data:image/jpeg;base64,/9j/PHOTO');
+  await R.pull(true); await sleep(80);
+  const fp = R.feed().find((x) => x.p.pages === 20); if (!fp || fp.p.photoData !== 'data:image/jpeg;base64,/9j/PHOTO') throw new Error('fotografia da atividade de uma amiga');
+  RF.app.go('home'); await sleep(40);
+  const notes = walk(roots[0]).filter((n) => cls1(n, 'act-note')); if (notes.length < 2 || !notes.some((n) => /Nota curta da Maria/.test(text(n)))) throw new Error('o Início devia mostrar as notas das leituras dos amigos');
+  const longNote = notes.find((n) => cls1(n, 'clip4')); if (!longNote) throw new Error('nota longa fica recolhida'); longNote.listeners.click[0]({ currentTarget: longNote }); if (cls1(longNote, 'clip4')) throw new Error('clicar na nota longa devia expandi-la');
+  const phImg = walk(roots[0]).find((n) => cls1(n, 'session-photo') && String(n.src || (n.attrs || {}).src || '').includes('PHOTO')); if (!phImg) throw new Error('fotografia no cartão');
+  phImg.listeners.click[0](); if (!walk(roots[1]).some((n) => cls1(n, 'photo-big'))) throw new Error('clicar na fotografia abre-a em grande'); roots[1].children = [];
+  RF.app.go('friend:maria#204819'); await sleep(60); if (!walk(roots[0]).some((n) => cls1(n, 'act-note'))) throw new Error('perfil do amigo: atividade com nota');
+  RF.app.go('friends'); clickBtn(roots[0], 'Privacidade'); if (!/Notas e fotos das leituras na atividade/.test(text(roots[0])) || !/só aparecem aos seguidores se/.test(text(roots[0]))) throw new Error('opção na aba Privacidade');
+  ok('atividade com o que a pessoa escreveu e a fotografia: enviada só se a opção estiver ligada, mostrada no Início e no perfil, nota longa expansível, foto em grande');
+  // (3) trocar a ordem dos livros na estante (arrastar e largar)
+  const mk3 = []; for (const n of ['Ord A', 'Ord B', 'Ord C']) { const b = S.newBook({ title: n, author: 'O', totalPages: 100, status: 'reading' }); await S.saveBook(b); mk3.push(b); }
+  S.state.settings.libraryStyle = 'spines'; RF.app.go('library');
+  const dragEls = () => walk(roots[0]).filter((n) => (n.attrs || {}).draggable === 'true');
+  const elOf = (title) => dragEls().find((n) => String((n.attrs || {}).title || '').startsWith(title) || text(n).trim() === title);
+  const order3 = () => dragEls().map((n) => text(n).trim() || String((n.attrs || {}).title || '')).filter((x) => /^Ord [ABC]/.test(x)).map((x) => x.slice(0, 5));
+  if (dragEls().length < 3) throw new Error('os livros da estante devem ser arrastáveis'); const before3 = order3().join(',');
+  const dnd = async (from, to, after) => {
+    const a = elOf(from), b = elOf(to); b.getBoundingClientRect = () => ({ left: 0, width: 10 });
+    a.listeners.dragstart[0]({ dataTransfer: { setData() {} } }); b.listeners.dragover[0]({ clientX: after ? 9 : 1, preventDefault() {} }); await b.listeners.drop[0]({ clientX: after ? 9 : 1, preventDefault() {} }); await sleep(40);
+  };
+  await dnd('Ord A', 'Ord C', true);
+  const ord = S.state.settings.shelfOrder.reading; if (!ord || ord.at <= 0) throw new Error('a ordem devia ficar guardada');
+  const idsRd = ord.ids; if (idsRd.indexOf(mk3[1].id) > idsRd.indexOf(mk3[2].id) || idsRd.indexOf(mk3[2].id) > idsRd.indexOf(mk3[0].id)) throw new Error('ordem guardada: B, C, A — ' + order3());
+  if (order3().join(',') !== 'Ord B,Ord C,Ord A') throw new Error('o ecrã devia mostrar B, C, A e mostra ' + order3() + ' (antes: ' + before3 + ')');
+  await dnd('Ord A', 'Ord B', false); if (order3().join(',') !== 'Ord A,Ord B,Ord C') throw new Error('largar antes: ' + order3());
+  const stale = { ...S.state.settings.shelfOrder.reading }; await dnd('Ord C', 'Ord A', false);
+  S.state.settings.libraryStyle = 'covers'; RF.app.go('library'); if (dragEls().length < 3) throw new Error('as capas também são arrastáveis'); S.state.settings.libraryStyle = 'spines'; RF.app.go('library');
+  const resetBtn = walk(roots[0]).find((n) => n.tagName === 'BUTTON' && (n.attrs || {}).title === 'Repor a ordem'); if (!resetBtn) throw new Error('botão «Repor a ordem»');
+  resetBtn.listeners.click[0](); await sleep(60); if (S.state.settings.shelfOrder.reading.ids.length !== 0 || order3().join(',') !== before3) throw new Error('repor a ordem');
+  let mo = RF.sync.mergeDocs({ books: [], sessions: [], shelves: [], unlocked: [], settings: { updatedAt: 5, shelfOrder: { reading: { at: 10, ids: ['x'] }, finished: { at: 1, ids: ['f1'] } } }, tombstones: {} }, { books: [], sessions: [], shelves: [], unlocked: [], settings: { updatedAt: 9, shelfOrder: { reading: { at: 4, ids: ['y'] }, wantToRead: { at: 2, ids: ['w'] } } }, tombstones: {} });
+  if (mo.settings.shelfOrder.reading.ids[0] !== 'x' || mo.settings.shelfOrder.finished.ids[0] !== 'f1' || mo.settings.shelfOrder.wantToRead.ids[0] !== 'w') throw new Error('a ordem junta-se prateleira a prateleira');
+  ok('estante: arrastar para trocar a ordem (lombadas e capas), guardada, com «Repor a ordem» e fusão entre computadores secção a secção');
+  // (4) escolher a prateleira ao criar o livro
+  const sh1 = { id: Lz.uid(), name: 'Prat1', createdAt: Date.now() }, sh2 = { id: Lz.uid(), name: 'Prat2', createdAt: Date.now() }; await S.saveShelf(sh1); await S.saveShelf(sh2);
+  RF.dialogs.openBookForm(); const fm = roots[1];
+  if (!/Prateleiras/.test(text(fm)) || !/Prat1/.test(text(fm)) || !/Prat2/.test(text(fm))) throw new Error('o formulário devia listar as prateleiras');
+  const chip = walk(fm).find((n) => cls1(n, 'chip-check') && /Prat1/.test(text(n))), chk = walk(chip).find((n) => n.tagName === 'INPUT'); chk.checked = true; chk.listeners.change[0]({ target: chk });
+  const realPrompt = RF.ui.promptDialog; RF.ui.promptDialog = async () => 'Prat3'; clickBtn(fm, 'Nova prateleira'); await sleep(120); RF.ui.promptDialog = realPrompt;
+  if (!S.state.shelves.some((s) => s.name === 'Prat3')) throw new Error('criar prateleira no formulário');
+  const fld4 = (ph) => walk(fm).find((n) => n.tagName === 'INPUT' && n.attrs.placeholder === ph), set4 = (el, v) => { el.value = v; if (el.listeners.input) el.listeners.input[0]({ target: el }); };
+  set4(fld4('Título'), 'Livro Prateleiras'); set4(fld4('Autor'), 'P'); set4(fld4('Número de páginas'), '90'); clickBtn(fm, 'Guardar'); await sleep(150);
+  const nb4 = S.state.books.find((b) => b.title === 'Livro Prateleiras'), p3 = S.state.shelves.find((s) => s.name === 'Prat3');
+  if (!nb4 || !nb4.shelfIds.includes(sh1.id) || !nb4.shelfIds.includes(p3.id) || nb4.shelfIds.includes(sh2.id)) throw new Error('prateleiras escolhidas ao criar: ' + JSON.stringify(nb4 && nb4.shelfIds));
+  RF.app.go('library'); if (!walk(roots[0]).some((n) => /Prat1/.test(text(n)) && cls1(n, 'shelf'))) throw new Error('o livro aparece na prateleira escolhida');
+  ok('novo livro: escolher a prateleira (e criar uma nova) no próprio formulário');
 
   // Perfil visto por um seguidor: 5 miniaturas + "Ver mais", estatísticas e atividade
   for (let i = 0; i < 8; i++) await S.saveBook(S.newBook({ title: 'Fav ' + i, author: 'A', status: 'finished', favorite: true, totalPages: 100 }));

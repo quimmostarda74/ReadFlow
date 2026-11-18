@@ -56,7 +56,20 @@
         if (!url) L.SPINE_PALETTE.forEach((hex) => swatches.append(h('button', { type: 'button', class: 'swatch' + (hex === d.color ? ' on' : ''),
           style: { background: hex }, title: hex, onClick: () => { d.color = hex; paintSpine(); paintCover(); } })));
       }
-      paintSeg(); paintStatus(); paintFlags(); paintCover(); paintSpine();
+      // Prateleiras: escolher já ao criar (ou editar) o livro, e criar uma nova se for preciso.
+      const shelfBox = h('div', { class: 'field' });
+      function paintShelves() {
+        const items = S.state.shelves.map((sh) => h('label', { class: 'chip-check' + (d.shelfIds.includes(sh.id) ? ' on' : '') },
+          h('input', { type: 'checkbox', checked: d.shelfIds.includes(sh.id), onChange: (e) => { d.shelfIds = e.target.checked ? [...d.shelfIds, sh.id] : d.shelfIds.filter((x) => x !== sh.id); paintShelves(); } }), sh.name));
+        shelfBox.replaceChildren(h('span', null, t('Prateleiras')),
+          h('div', { class: 'row gap wrap' }, ...items,
+            h('button', { class: 'btn small-btn', type: 'button', onClick: async () => {
+              const name = await UI.promptDialog({ title: t('Nova prateleira'), label: t('Nome da prateleira'), confirmLabel: t('Criar') });
+              if (name) { const sh = { id: L.uid(), name, createdAt: Date.now() }; await S.saveShelf(sh); d.shelfIds = [...d.shelfIds, sh.id]; paintShelves(); await RF.app.checkAchievements(); }
+            } }, icon('plus', 12), t('Nova prateleira'))),
+          S.state.shelves.length ? null : h('p', { class: 'muted small' }, t('Ainda não tens prateleiras personalizadas.')));
+      }
+      paintSeg(); paintStatus(); paintFlags(); paintCover(); paintSpine(); paintShelves();
 
       return h('div', { class: 'dialog wide form' }, UI.modalHeader(existing ? t('Editar livro') : t('Novo livro'), api),
         h('div', { class: 'form-grid' },
@@ -68,6 +81,7 @@
               h('label', { class: 'field grow' }, h('span', null, t('Género')), genre)),
             h('label', { class: 'field' }, h('span', null, t('Onde compraste (opcional)')), bought),
             h('div', { class: 'field' }, h('span', null, t('Estado')), statusRow), extra,
+            shelfBox,
             recBox,
             h('label', { class: 'field' }, h('span', null, t('Introdução Geral')), notes)),
           h('div', { class: 'stack' },

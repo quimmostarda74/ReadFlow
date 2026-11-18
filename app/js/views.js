@@ -63,13 +63,23 @@
       s.notes ? h('p', { class: 'muted' }, s.notes) : null);
   }
 
+  /** O que a pessoa deixou escrito numa leitura e a fotografia (partilhados na atividade, se ela deixar). */
+  const actExtras = (a) => {
+    const src = a.photoData || (a.photoId ? S.imgUrl(a.photoId) : null);
+    return [
+      a.note ? h('div', { class: 'act-note' + (a.note.length > 200 ? ' clip4' : ''), title: a.note.length > 200 ? t('Toca para ler tudo') : '', onClick: (e) => { if (a.note.length > 200) e.currentTarget.classList.toggle('clip4'); } }, '“' + a.note + '”') : null,
+      src ? h('img', { class: 'session-photo link', src, alt: '', onClick: () => UI.openPhoto(src, a.book) }) : null
+    ];
+  };
+
   /** Atividade de um amigo (o nome e a foto abrem o perfil). */
   function friendPostCard(u, p) {
     return h('div', { class: 'card session-card' },
       h('div', { class: 'row gap center' }, h('div', { class: 'row gap center grow link', onClick: () => RF.app.go('friend:' + u.id) }, UI.avatar(40, { name: u.name, color: u.color, photo: u.avatar }),
         h('div', null, h('div', { class: 'strong' }, t('{name} leu «{book}»', { name: u.name, book: p.book })), h('div', { class: 'muted small' }, agoFromMs(p.when))))),
       unlockChips(p.unlocked),
-      h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(p.minutes * 60)), metric(t('Páginas'), String(p.pages)), metric(t('Ritmo'), L.pace(p.minutes > 0 ? p.pages / (p.minutes / 60) : 0))));
+      h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(p.minutes * 60)), metric(t('Páginas'), String(p.pages)), metric(t('Ritmo'), L.pace(p.minutes > 0 ? p.pages / (p.minutes / 60) : 0))),
+      ...actExtras(p));
   }
   const friendPosts = () => (RF.remote.signedIn() ? RF.remote.feed() : []);
 
@@ -133,10 +143,12 @@
     const open = (b) => RF.app.go('book:' + b.id);
     const levelNames = ['', t('Equilibrada'), t('Compacta'), t('Muito cheia')];
 
-    function section(title, ic, books, shelf, featured) {
-      const res = RF.shelf.renderCase(books, { style, width: W, featured: featured || new Set(), onOpen: open });
+    function section(title, ic, books0, shelf, featured, secId) {
+      const books = RF.shelf.orderBooks(secId, books0), hasOrder = !!(((st.settings.shelfOrder || {})[secId] || {}).ids || []).length;
+      const res = RF.shelf.renderCase(books, { style, width: W, featured: featured || new Set(), onOpen: open, reorder: !libQuery.trim() && books.length > 1 ? { id: secId, all: books, onDone: () => RF.app.refresh() } : null });
       return h('section', { class: 'shelf' }, h('div', { class: 'shelf-head' }, icon(ic, 18), h('h2', { class: 'serif' }, title), h('span', { class: 'count' }, String(books.length)),
         style !== 'covers' && res.level > 0 ? h('span', { class: 'level-chip', title: t('Os livros reorganizam-se para caberem mais') }, levelNames[res.level]) : null, h('span', { class: 'grow' }),
+        hasOrder ? h('button', { class: 'icon-btn', title: t('Repor a ordem'), onClick: async () => { await RF.shelf.resetOrder(secId); RF.app.refresh(); } }, icon('rotate', 16)) : null,
         shelf ? h('button', { class: 'icon-btn', title: t('Renomear'), onClick: async () => {
           const name = await UI.promptDialog({ title: t('Renomear prateleira'), label: t('Nome'), value: shelf.name });
           if (name) { shelf.name = name; await S.saveShelf(shelf); RF.app.refresh(); }
@@ -152,10 +164,10 @@
         return;
       }
       const reading = st.books.filter((b) => b.status === 'reading' && matches(b));
-      room.append(section(t('A ler'), 'book', reading, null, new Set(reading.map((b) => b.id))),
-        section(t('Lidos'), 'check', st.books.filter((b) => b.status === 'finished' && matches(b))),
-        section(t('Quero ler'), 'bookmark', st.books.filter((b) => b.status === 'wantToRead' && matches(b))),
-        ...st.shelves.map((sh) => section(sh.name, 'layers', st.books.filter((b) => b.shelfIds.includes(sh.id) && matches(b)), sh)));
+      room.append(section(t('A ler'), 'book', reading, null, new Set(reading.map((b) => b.id)), 'reading'),
+        section(t('Lidos'), 'check', st.books.filter((b) => b.status === 'finished' && matches(b)), null, null, 'finished'),
+        section(t('Quero ler'), 'bookmark', st.books.filter((b) => b.status === 'wantToRead' && matches(b)), null, null, 'wantToRead'),
+        ...st.shelves.map((sh) => section(sh.name, 'layers', st.books.filter((b) => b.shelfIds.includes(sh.id) && matches(b)), sh, null, sh.id)));
     }
     paint();
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => {
@@ -170,7 +182,7 @@
     };
     const segBtn = (val, ic, title) => h('button', { class: 'seg-btn' + (style === val ? ' on' : ''), title, onClick: async () => { st.settings.libraryStyle = val; await S.saveSettings(); RF.app.refresh(); } }, icon(ic, 16));
     return h('div', { class: 'page' },
-      pageHead(h('span', { class: 'row gap center' }, libName(), h('button', { class: 'icon-btn', title: t('Mudar o nome da estante'), onClick: rename }, icon('edit', 18))), tn('books', st.books.length), h('div', { class: 'row gap center wrap' },
+      pageHead(h('span', { class: 'row gap center' }, libName(), h('button', { class: 'icon-btn', title: t('Mudar o nome da estante'), onClick: rename }, icon('edit', 18))), tn('books', st.books.length) + (st.books.length > 1 ? ' · ' + t('Arrasta os livros para mudar a ordem.') : ''), h('div', { class: 'row gap center wrap' },
         h('label', { class: 'search-box' }, icon('search', 16), h('input', { class: 'search', type: 'search', placeholder: t('Procurar livro ou autor'), value: libQuery, onInput: (e) => { libQuery = e.target.value; paint(); } })),
         h('div', { class: 'seg' }, segBtn('spines', 'columns', t('Lombadas')), segBtn('covers', 'grid', t('Capas'))),
         h('button', { class: 'btn', onClick: () => RF.shelf.openCustomize() }, icon('palette', 16), t('Personalizar')),
@@ -308,7 +320,10 @@
   /** Abre a ficha do livro (capa, autor, avaliação e «Introdução Geral»). Se for de um amigo, descarrega primeiro a capa. */
   async function showBook(it, handle) {
     let item = it;
-    if (handle && it.ck && !it.coverData) { const got = await RF.remote.loadKeys(handle, [it.ck]); item = { ...it, coverData: got[it.ck] || null }; }
+    if (handle) {
+      const keys = [it.ck && !it.coverData ? it.ck : null, it.rk || null].filter(Boolean);
+      if (keys.length) { const got = await RF.remote.loadKeys(handle, keys); item = { ...it, coverData: it.coverData || (it.ck && got[it.ck]) || null, review: (it.rk && got[it.rk]) || it.review }; }
+    }
     UI.openBookInfo(item, { action: handle && !haveBook(item.title, item.author) ? (api) => h('button', { class: 'btn', onClick: () => { api.close(); addToWishlist(item); } }, icon('plus', 14), t('Quero ler')) : null });
   }
   const haveBook = (title, author) => S.state.books.some((b) => (b.title + '|' + b.author).toLowerCase() === (title + '|' + author).toLowerCase());
@@ -444,6 +459,7 @@
         h('p', { class: 'muted small' }, t('Só as pessoas cujo pedido aceitaste veem o teu perfil. Escolhe o que mostras.')),
         ...SOC.PRIVACY_KEYS.map(([k, label]) => h('label', { class: 'switch-row' }, h('span', null, t(label)), h('input', { type: 'checkbox', class: 'switch', checked: !!st.privacy[k], onChange: async (e) => { st.privacy[k] = e.target.checked; await S.saveSettings(); R.schedulePush(400); } }))),
         h('p', { class: 'muted small' }, t('Só enviamos para o servidor o que estiver ligado. Ao desligar uma secção, ela é apagada do servidor.')),
+        h('p', { class: 'muted small' }, t('As notas e fotos das leituras só aparecem aos seguidores se «Atividade de leitura» também estiver ligada.')),
         h('div', { class: 'row end' }, h('button', { class: 'btn', onClick: () => openMyPreview() }, icon('eye', 16), t('Ver como um seguidor'))));
     }
     const status = R.state.offline ? t('Sem ligação. Os dados são enviados quando voltar a internet.') : R.state.lastSync ? t('Sincronizado {ago}', { ago: agoFromMs(R.state.lastSync) }) : t('A sincronizar…');
@@ -467,7 +483,7 @@
     it.rating > 0 ? UI.starsStatic(it.rating, 12) : null,
     (withNote && it.note) ? h('span', { class: 'muted tiny clip2' }, '“' + it.note + '”') : (it.review ? h('span', { class: 'muted tiny clip2' }, it.review) : null));
   const activityLine = (a) => h('div', { class: 'card flat stack tight session-card' }, h('div', { class: 'row between center' }, h('span', { class: 'strong serif clip' }, a.book || t('Livro removido')), h('span', { class: 'muted small' }, agoFromMs(a.when))),
-    unlockChips(a.unlocked), h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(a.minutes * 60)), metric(t('Páginas'), String(a.pages)), metric(t('Ritmo'), L.pace(a.minutes > 0 ? a.pages / (a.minutes / 60) : 0))));
+    unlockChips(a.unlocked), h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(a.minutes * 60)), metric(t('Páginas'), String(a.pages)), metric(t('Ritmo'), L.pace(a.minutes > 0 ? a.pages / (a.minutes / 60) : 0))), ...actExtras(a));
 
   function publicView(p, ctx) {
     const sec = p.sections;

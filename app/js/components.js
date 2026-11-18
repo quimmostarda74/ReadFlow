@@ -247,10 +247,11 @@
     return el;
   }
 
-  /** Ficha de um livro de outra pessoa: capa, autor, páginas, avaliação e a «Introdução Geral». */
+  /** Ficha de um livro de outra pessoa: capa, autor, páginas, avaliação e a «Introdução Geral» (com rolagem para textos longos). */
   function openBookInfo(it, opts) {
     opts = opts || {};
     const intro = (it.review || '').trim(), rec = (it.note || '').trim();
+    const scroll = (text, extra) => h('div', { class: 'intro-text' + (text.length > 420 ? ' scrollable' : '') + (extra ? ' ' + extra : ''), tabindex: '0' }, text);
     return openModal((api) => h('div', { class: 'dialog book-info' }, modalHeader(it.title, api),
       h('div', { class: 'row gap' }, coverEl(it, 120),
         h('div', { class: 'stack tight grow' },
@@ -258,9 +259,16 @@
           it.pages > 0 ? h('div', { class: 'muted small' }, t('{n} páginas', { n: it.pages })) : null,
           it.rating > 0 ? starsStatic(it.rating, 16) : null)),
       h('div', { class: 'stack tight' }, h('div', { class: 'strong small' }, t('Introdução Geral')),
-        intro ? h('div', { class: 'intro-text' }, intro) : h('div', { class: 'muted small' }, t('Sem introdução partilhada.'))),
-      rec ? h('div', { class: 'stack tight' }, h('div', { class: 'strong small' }, t('Recomendação')), h('div', { class: 'intro-text' }, '“' + rec + '”')) : null,
+        intro ? scroll(intro) : h('div', { class: 'muted small' }, t('Sem introdução partilhada.')),
+        intro.length > 420 ? h('div', { class: 'muted tiny' }, t('Usa a roda do rato para ler tudo.')) : null),
+      rec ? h('div', { class: 'stack tight' }, h('div', { class: 'strong small' }, t('Recomendação')), scroll('“' + rec + '”', 'short')) : null,
       h('div', { class: 'row end gap' }, opts.action ? opts.action(api) : null, h('button', { class: 'btn primary', onClick: () => api.close() }, t('Fechar')))));
+  }
+
+  /** Fotografia de uma leitura em ponto grande. */
+  function openPhoto(src, caption) {
+    return openModal((api) => h('div', { class: 'dialog photo-view' }, modalHeader(caption || t('Fotografia'), api),
+      h('img', { class: 'photo-big', src, alt: '' }), h('div', { class: 'row end' }, h('button', { class: 'btn primary', onClick: () => api.close() }, t('Fechar')))));
   }
 
   /** Nível e barra de experiência (XP). `compact`: versão mais pequena, para perfis de outras pessoas. */
@@ -522,6 +530,6 @@
 
   RF.ui = {
     h, icon, openModal, modalHeader, hasModal, hasModalAbove, confirmDialog, promptDialog, toastAchievements,
-    medal, avatar, spineEl, coverEl, ring, progressBar, stars, starsStatic, openBookInfo, levelBadge, barChart, heatmap, photoPicker, openCropper, openCamera
+    medal, avatar, spineEl, coverEl, ring, progressBar, stars, starsStatic, openBookInfo, openPhoto, levelBadge, barChart, heatmap, photoPicker, openCropper, openCamera
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -133,8 +133,54 @@
     return el;
   }
 
-  function renderUnit(u, open) {
-    const click = (b) => (el) => { el.addEventListener('click', () => open(b)); return el; };
+  /* ---------- Ordem dos livros (arrastar e largar) ---------- */
+  // Guardada em settings.shelfOrder[secção] = { at, ids }; «secção» = reading | finished | wantToRead | id de uma prateleira.
+  function orderBooks(sectionId, books) {
+    const rec = (S.state.settings.shelfOrder || {})[sectionId];
+    if (!rec || !rec.ids || !rec.ids.length) return books;
+    const idx = new Map(rec.ids.map((id, i) => [id, i]));
+    return books.map((b, i) => ({ b, k: idx.has(b.id) ? idx.get(b.id) : 1e9 + i })).sort((x, y) => x.k - y.k).map((x) => x.b);   // os novos ficam no fim
+  }
+  async function moveBook(sectionId, ordered, dragId, targetId, after) {
+    const ids = ordered.map((b) => b.id).filter((id) => id !== dragId), at = ids.indexOf(targetId);
+    if (at < 0) return false;
+    ids.splice(after ? at + 1 : at, 0, dragId);
+    const st = S.state.settings; st.shelfOrder = { ...(st.shelfOrder || {}), [sectionId]: { at: Date.now(), ids } };
+    await S.saveSettings();
+    return true;
+  }
+  async function resetOrder(sectionId) {
+    const st = S.state.settings; st.shelfOrder = { ...(st.shelfOrder || {}), [sectionId]: { at: Date.now(), ids: [] } };   // vazio = ordem original (e propaga-se aos outros computadores)
+    await S.saveSettings();
+  }
+  let dragState = null;
+  function wireDrag(el, book, o) {
+    const R = o && o.reorder;
+    if (!R) return el;
+    const marks = () => { el.classList.remove('drop-before'); el.classList.remove('drop-after'); };
+    const isAfter = (e) => { const r = el.getBoundingClientRect ? el.getBoundingClientRect() : { left: 0, width: 0 }; return (e.clientX || 0) > r.left + r.width / 2; };
+    el.setAttribute('draggable', 'true');
+    el.addEventListener('dragstart', (e) => {
+      dragState = { section: R.id, id: book.id }; el.classList.add('dragging');
+      if (e.dataTransfer) { try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', book.id); } catch (x) { /* ok */ } }
+    });
+    el.addEventListener('dragend', () => { dragState = null; el.classList.remove('dragging'); marks(); });
+    el.addEventListener('dragover', (e) => {
+      if (!dragState || dragState.section !== R.id || dragState.id === book.id) return;
+      e.preventDefault(); marks(); el.classList.add(isAfter(e) ? 'drop-after' : 'drop-before');
+    });
+    el.addEventListener('dragleave', marks);
+    el.addEventListener('drop', async (e) => {
+      if (!dragState || dragState.section !== R.id) return;
+      e.preventDefault(); marks();
+      const id = dragState.id, after = isAfter(e); dragState = null;
+      if (id !== book.id && await moveBook(R.id, R.all, id, book.id, after) && R.onDone) R.onDone();
+    });
+    return el;
+  }
+
+  function renderUnit(u, open, o) {
+    const click = (b) => (el) => { el.addEventListener('click', () => open(b)); return wireDrag(el, b, o); };
     switch (u.kind) {
       case 'face': {
         const b = u.books[0];
@@ -170,14 +216,14 @@
       if (!rows.length) rows.push([]);
       return { level: 0, node: h('div', { class: 'shelf-lines' }, ...rows.map((row) => h('div', { class: 'shelf-row' },
         h('div', { class: 'units', style: { gap: '16px', height: Y.ROW_H - 40 + 'px' } },
-          ...(row.length ? row.map((b) => h('div', { class: 'unit face', title: b.title, onClick: () => open(b) }, UI.coverEl(b, Y.FACE_W))) : [h('div', { class: 'shelf-empty' }, t('Sem livros nesta prateleira'))])),
+          ...(row.length ? row.map((b) => wireDrag(h('div', { class: 'unit face', title: b.title, onClick: () => open(b) }, UI.coverEl(b, Y.FACE_W)), b, o)) : [h('div', { class: 'shelf-empty' }, t('Sem livros nesta prateleira'))])),
         boardLine()))) };
     }
     const lay = Y.layoutShelf(books, o.width, { rows: 2, featured: o.featured });
     const rows = lay.rows.length ? lay.rows : [{ units: [] }];
     return { level: lay.level, node: h('div', { class: 'shelf-lines' }, ...rows.map((row) => h('div', { class: 'shelf-row' },
       h('div', { class: 'units', style: { gap: lay.gap + 'px', height: Y.ROW_H + 'px' } },
-        ...(row.units.length ? row.units.map((u) => renderUnit(u, open)) : [h('div', { class: 'shelf-empty' }, t('Sem livros nesta prateleira'))])),
+        ...(row.units.length ? row.units.map((u) => renderUnit(u, open, o)) : [h('div', { class: 'shelf-empty' }, t('Sem livros nesta prateleira'))])),
       boardLine()))) };
   }
 
@@ -245,5 +291,5 @@
     }, { wide: true });
   }
 
-  RF.shelf = { THEMES, BACKGROUNDS, ALL, context, stateOf, themeOf, bgOf, applyRoom, syncCosmetics, renderCase, openCustomize };
+  RF.shelf = { THEMES, BACKGROUNDS, ALL, context, stateOf, themeOf, bgOf, applyRoom, syncCosmetics, renderCase, openCustomize, orderBooks, moveBook, resetOrder };
 })(typeof window !== 'undefined' ? window : globalThis);

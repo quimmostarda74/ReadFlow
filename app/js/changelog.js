@@ -4,6 +4,24 @@
   root.RF = root.RF || {};
   // k: new (novo) | imp (melhorado) | fix (corrigido). Cada item tem o texto nos 4 idiomas.
   const E = [
+    { v: '1.8.0', date: '2026-11', items: [
+      { k: 'new', pt: 'A «Introdução Geral» de um livro lê-se completa: o texto já não é cortado e percorre-se com a roda do rato.',
+        en: 'A book’s «General Introduction» now reads in full: the text is no longer cut off and scrolls with the mouse wheel.',
+        ru: '«Общее введение» книги теперь читается полностью: текст больше не обрезается и прокручивается колёсиком мыши.',
+        de: 'Die «Allgemeine Einführung» eines Buches ist jetzt vollständig lesbar: Der Text wird nicht mehr abgeschnitten und lässt sich mit dem Mausrad scrollen.' },
+      { k: 'new', pt: 'Arrasta os livros na estante para mudar a ordem. Há «Repor a ordem» e a ordem acompanha-te noutros computadores.',
+        en: 'Drag the books on the shelf to change their order. There is «Reset the order», and the order follows you to other computers.',
+        ru: 'Перетаскивай книги на полке, чтобы менять порядок. Есть «Сбросить порядок», а порядок следует за тобой на другие компьютеры.',
+        de: 'Ziehe die Bücher im Regal, um die Reihenfolge zu ändern. Es gibt «Reihenfolge zurücksetzen», und die Reihenfolge folgt dir auf andere Computer.' },
+      { k: 'new', pt: 'A atividade dos amigos mostra o que escreveste numa leitura e a fotografia. Podes desligar em Amigos > Privacidade.',
+        en: 'Friends’ activity shows what you wrote in a reading and its photo. You can turn it off in Friends > Privacy.',
+        ru: 'В активности друзей видно, что ты написал(а) в записи чтения, и фото. Можно отключить в «Друзья» > «Приватность».',
+        de: 'Die Aktivität der Freunde zeigt, was du bei einer Lesesitzung geschrieben hast, und das Foto. Du kannst es unter Freunde > Datenschutz ausschalten.' },
+      { k: 'new', pt: 'Ao criar ou editar um livro escolhes logo a prateleira (e podes criar uma nova).',
+        en: 'When creating or editing a book you choose its shelf right away (and can create a new one).',
+        ru: 'При создании или редактировании книги сразу выбираешь полку (и можно создать новую).',
+        de: 'Beim Erstellen oder Bearbeiten eines Buches wählst du gleich das Regal (und kannst ein neues anlegen).' }
+    ] },
     { v: '1.7.0', date: '2026-11', items: [
       { k: 'new', pt: 'Cópia na nuvem com o Google Drive: tudo o que registas (livros, leituras, estantes, conquistas, definições e imagens) fica guardado numa pasta privada do teu Google Drive e aparece em qualquer computador onde entres na tua conta.',
         en: 'Cloud copy with Google Drive: everything you record (books, readings, shelves, achievements, settings and images) is saved in a private folder in your Google Drive and appears on any computer where you sign in to your account.',
@@ -117,6 +135,6 @@
         de: 'Profil aus Sicht eines Followers mit Statistiken und Aktivität; 5 Vorschaubilder mit «Mehr ansehen».' }
     ] }
   ];
-  root.RF.changelog = { current: '1.7.0', entries: E };
+  root.RF.changelog = { current: '1.8.0', entries: E };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.RF.changelog;
 })(typeof window !== 'undefined' ? window : globalThis);

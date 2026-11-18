@@ -7,7 +7,7 @@
   const PRIVACY_KEYS = [
     ['reading', 'O que estou a ler'], ['finished', 'Livros que já li'], ['favorites', 'Livros favoritos'],
     ['recommendations', 'As minhas recomendações'], ['bio', 'Descrição do perfil'], ['achievements', 'Conquistas'],
-    ['activity', 'Atividade de leitura'], ['stats', 'Estatísticas (tempo e páginas)'], ['reviews', 'Introdução Geral e avaliações dos livros']
+    ['activity', 'Atividade de leitura'], ['activityNotes', 'Notas e fotos das leituras na atividade'], ['stats', 'Estatísticas (tempo e páginas)'], ['reviews', 'Introdução Geral e avaliações dos livros']
   ];
 
   const clean = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_]/g, '').slice(0, 16);
@@ -29,10 +29,20 @@
     return { hours: Math.round(tot.seconds / 3600), minutes: Math.round(tot.seconds / 60), pages: tot.pages + L.sumBonus(bonus), books: st.books.filter((b) => b.status === 'finished').length,
       sessions: tot.sessions, streak: strk.current, pace: tot.seconds > 0 ? Math.round(tot.pages / (tot.seconds / 3600)) : 0, week: per(wk), month: per(mo) };
   };
-  const activityOf = (st, limit) => [...st.sessions].sort((a, b) => b.start - a.start).slice(0, limit || 1e9).map((s) => {
-    const b = st.books.find((x) => x.id === s.bookId);
-    return { book: b ? b.title : '', minutes: Math.round(s.durationSeconds / 60), pages: L.pagesRead(s), when: s.start, unlocked: s.unlocked || [], manual: !!s.manual };
-  });
+  const NOTE_MAX = 1500, INTRO_INLINE = 500, INTRO_MAX = 20000;
+  /** Atividade de leitura. `opts.details`: inclui o que a pessoa escreveu e a fotografia (se tiver miniatura em `opts.keys`). */
+  const activityOf = (st, limit, opts) => {
+    opts = opts || {};
+    return [...st.sessions].sort((a, b) => b.start - a.start).slice(0, limit || 1e9).map((s) => {
+      const b = st.books.find((x) => x.id === s.bookId);
+      const o = { book: b ? b.title : '', minutes: Math.round(s.durationSeconds / 60), pages: L.pagesRead(s), when: s.start, unlocked: s.unlocked || [], manual: !!s.manual };
+      const note = (s.notes || '').trim();
+      if (opts.details && note) o.note = note.slice(0, NOTE_MAX);
+      if (opts.details && s.photoId && opts.keys && opts.keys.has('p-' + s.id)) o.pk = 'p-' + s.id;
+      if (opts.local && opts.details && s.photoId) o.photoId = s.photoId;
+      return o;
+    });
+  };
 
   /** O que um seguidor aprovado vê do meu perfil (pré-visualização local, com capas reais). */
   function myPublicProfile(S) {
@@ -46,7 +56,7 @@
     if (p.recommendations) out.sections.recs = books.filter((b) => b.recommend).map(mk);
     if (p.stats) out.sections.stats = statsOf(st);
     if (p.achievements) out.sections.achievements = [...st.unlocked.keys()];
-    if (p.activity) out.sections.activity = activityOf(st);
+    if (p.activity) out.sections.activity = activityOf(st, 60, { details: p.activityNotes !== false, local: true });
     return out;
   }
 
@@ -56,7 +66,11 @@
     const st = S.state, p = st.settings.privacy, books = st.books, out = {};
     const mk = (b) => {
       const it = { title: b.title, author: b.author, note: b.recNote || '', color: b.color };
-      if (p.reviews) { if (b.rating > 0) it.rating = b.rating; if (b.notes && b.notes.trim()) it.review = b.notes.trim().slice(0, 400); }
+      if (p.reviews) {
+        if (b.rating > 0) it.rating = b.rating;
+        const full = (b.notes || '').trim().slice(0, INTRO_MAX);
+        if (full) { it.review = full.slice(0, INTRO_INLINE); if (full.length > INTRO_INLINE && coverKeys && coverKeys.has('i-' + b.id)) it.rk = 'i-' + b.id; }   // o texto completo vai à parte
+      }
       it.pages = b.totalPages || 0;
       if (b.coverId && coverKeys && coverKeys.has('c2-' + b.coverId)) it.ck = 'c2-' + b.coverId;
       return it;
@@ -68,7 +82,7 @@
     if (p.favorites) out.favorites = list((b) => b.favorite);
     if (p.recommendations) out.recommendations = list((b) => b.recommend);
     if (p.achievements) out.achievements = [...st.unlocked.keys()];
-    if (p.activity) out.activity = activityOf(st, 60);
+    if (p.activity) out.activity = activityOf(st, 60, { details: p.activityNotes !== false, keys: coverKeys });
     if (p.stats) out.stats = statsOf(st);
     return out;
   }
@@ -77,7 +91,7 @@
   /** Converte as secções recebidas do servidor no formato do ecrã de perfil. `covers`: { ck: dataUrl } já descarregadas. */
   function fromServer(shared, covers) {
     const sec = {};
-    const mk = (arr) => (arr || []).map((b) => item(b.title, b.author, b.note, { color: b.color || hue(b.title), rating: b.rating || 0, review: b.review || '', ck: b.ck || '', pages: b.pages || 0, coverData: (covers && b.ck && covers[b.ck]) || null }));
+    const mk = (arr) => (arr || []).map((b) => item(b.title, b.author, b.note, { color: b.color || hue(b.title), rating: b.rating || 0, review: b.review || '', rk: b.rk || '', ck: b.ck || '', pages: b.pages || 0, coverData: (covers && b.ck && covers[b.ck]) || null }));
     if (shared.bio) sec.bio = shared.bio.text || '';
     if (shared.reading) sec.reading = mk(shared.reading);
     if (shared.finished) sec.finished = mk(shared.finished);
@@ -85,7 +99,7 @@
     if (shared.recommendations) sec.recs = mk(shared.recommendations);
     if (shared.stats) sec.stats = shared.stats;
     if (shared.achievements) sec.achievements = shared.achievements;
-    if (shared.activity) sec.activity = shared.activity;
+    if (shared.activity) sec.activity = shared.activity.map((a) => ({ ...a, photoData: (covers && a.pk && covers[a.pk]) || null }));
     return sec;
   }
 

@@ -329,9 +329,20 @@ input[type=date], input[type=time] { width: 100%; padding: 10px 12px; border-rad
 .rank-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; } .rank-row.me { background: var(--soft); }
 .rank-n { width: 20px; text-align: center; color: var(--muted); font-weight: 700; }
 
-/* 1.6: ficha do livro de outra pessoa */
-.book-info { width: min(460px, 100%); }
-.intro-text { white-space: pre-wrap; line-height: 1.45; max-height: 38vh; overflow: auto; padding: 10px 12px; border-radius: 12px; background: var(--soft); }
+/* 1.8: ficha do livro com texto que se percorre com a roda do rato */
+.book-info { width: min(540px, 100%); max-height: 90vh; display: flex; flex-direction: column; }
+.intro-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; font-size: 14.5px; max-height: min(46vh, 420px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px; border-radius: 12px; background: var(--soft); scrollbar-width: thin; outline-offset: 2px; }
+.intro-text.short { max-height: min(22vh, 160px); }
+.intro-text.scrollable { box-shadow: inset 0 -16px 14px -14px rgba(0,0,0,.28); }
+.intro-text::-webkit-scrollbar { width: 8px; } .intro-text::-webkit-scrollbar-thumb { background: rgba(120,130,160,.45); border-radius: 8px; } .intro-text::-webkit-scrollbar-thumb:hover { background: rgba(120,130,160,.7); }
+.photo-view { width: min(720px, 100%); } .photo-big { width: 100%; max-height: 72vh; object-fit: contain; border-radius: 12px; background: var(--soft); }
+.act-note { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--soft); border-radius: 0 10px 10px 0; font-size: 14px; }
+.act-note.clip4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.session-photo.link { cursor: zoom-in; }
+/* 1.8: arrastar livros para mudar a ordem */
+.dragging { opacity: .35; }
+.drop-before { box-shadow: -4px 0 0 0 var(--accent); } .drop-after { box-shadow: 4px 0 0 0 var(--accent); }
+[draggable="true"] { cursor: grab; }
 .thumb.link, .full-item.link { cursor: pointer; } .thumb.link:hover .cover, .full-item.link:hover .cover { transform: translateY(-3px); }
 /* 1.5: conquistas com cartões do mesmo tamanho */
 .ach-grid { grid-auto-rows: 1fr; }
@@ -356,3 +367,6 @@ input[type=date], input[type=time] { width: 100%; padding: 10px 12px; border-rad
 .lvl-circle { width: 64px; height: 64px; flex-shrink: 0; border-radius: 50%; display: grid; place-content: center; text-align: center; color: #fff; background: linear-gradient(135deg, #F2B632, #F07A1A); box-shadow: 0 4px 12px rgba(240,122,26,.35); line-height: 1; }
 .lvl-circle strong { font-size: 24px; } .lvl-small { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; opacity: .9; }
 .lvl.compact .lvl-circle { width: 48px; height: 48px; } .lvl.compact .lvl-circle strong { font-size: 18px; }
+.chip-check { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 13px; }
+.chip-check.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
+.chip-check input { margin: 0; }

@@ -4561,6 +4561,48 @@
 "Something went wrong with the cloud copy. Please try again.",
 "Что-то пошло не так с облачной копией. Попробуй ещё раз.",
 "Bei der Cloud-Kopie ist etwas schiefgelaufen. Bitte versuche es erneut."
+],
+[
+"Arrasta os livros para mudar a ordem.",
+"Drag the books to change their order.",
+"Перетаскивай книги, чтобы изменить порядок.",
+"Ziehe die Bücher, um die Reihenfolge zu ändern."
+],
+[
+"As notas e fotos das leituras só aparecem aos seguidores se «Atividade de leitura» também estiver ligada.",
+"Reading notes and photos only appear to followers if «Reading activity» is also turned on.",
+"Заметки и фото чтения видны подписчикам, только если включена и «Активность чтения».",
+"Notizen und Fotos zu Lesesitzungen sehen Follower nur, wenn auch «Leseaktivität» eingeschaltet ist."
+],
+[
+"Fotografia",
+"Photo",
+"Фотография",
+"Foto"
+],
+[
+"Notas e fotos das leituras na atividade",
+"Reading notes and photos in activity",
+"Заметки и фото чтения в активности",
+"Notizen und Fotos zu Lesesitzungen in der Aktivität"
+],
+[
+"Repor a ordem",
+"Reset the order",
+"Сбросить порядок",
+"Reihenfolge zurücksetzen"
+],
+[
+"Toca para ler tudo",
+"Tap to read it all",
+"Нажми, чтобы прочитать всё",
+"Tippe, um alles zu lesen"
+],
+[
+"Usa a roda do rato para ler tudo.",
+"Use the mouse wheel to read it all.",
+"Используй колёсико мыши, чтобы прочитать всё.",
+"Mit dem Mausrad kannst du alles lesen."
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

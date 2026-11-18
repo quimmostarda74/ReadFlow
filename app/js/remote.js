@@ -162,7 +162,7 @@
     });
   }
   /** Miniatura de uma capa (140x210). Substituível nos testes. */
-  function defaultThumb(imageId, kind) {
+  function defaultThumb(imageId, kind) {   // kind: 'cover' (140x210), 'photo' (até 420 px, proporção original)
     return new Promise((resolve) => {
       try {
         const url = S.imgUrl(imageId);
@@ -170,12 +170,19 @@
         const img = new Image();
         img.onload = () => {
           try {
-            const w = kind === 'spine' ? 40 : 140, h = kind === 'spine' ? 200 : 210, c = document.createElement('canvas'); c.width = w; c.height = h;
-            const x = c.getContext('2d'), k = Math.max(w / img.width, h / img.height);
-            x.drawImage(img, (w - img.width * k) / 2, (h - img.height * k) / 2, img.width * k, img.height * k);
-            let q = 0.62, d = c.toDataURL('image/jpeg', q);
-            while (d.length > 30000 && q > 0.3) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }
-            resolve(d.length <= 38000 ? d : null);
+            const photo = kind === 'photo';
+            let side = 1;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              const sc = photo ? Math.min(1, (420 * side) / Math.max(img.width, img.height)) : 1;
+              const w = photo ? Math.max(1, Math.round(img.width * sc)) : 140, h = photo ? Math.max(1, Math.round(img.height * sc)) : 210, c = document.createElement('canvas'); c.width = w; c.height = h;
+              const x = c.getContext('2d'), k = photo ? sc : Math.max(w / img.width, h / img.height);
+              x.drawImage(img, photo ? 0 : (w - img.width * k) / 2, photo ? 0 : (h - img.height * k) / 2, img.width * k, img.height * k);
+              let q = 0.62, d = c.toDataURL('image/jpeg', q);
+              while (d.length > 30000 && q > 0.3) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }
+              if (d.length <= 38000) return resolve(d);
+              side *= 0.75;
+            }
+            resolve(null);
           } catch (e) { resolve(null); }
         };
         img.onerror = () => resolve(null);
@@ -183,17 +190,21 @@
       } catch (e) { resolve(null); }
     });
   }
-  const api = { thumbProvider: defaultThumb };
+  const api = { thumbProvider: defaultThumb, resetCovers() { coversOff = false; serverCovers = null; } };   // resetCovers: usado nos testes
   /** Capas dos livros que vão ser partilhados (só das listas ligadas em Privacidade). */
   async function coverThumbs() {
     const p = S.state.settings.privacy, out = new Map();
-    const want = S.state.books.filter((b) => b.coverId && ((p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend)));
+    const shared = S.state.books.filter((b) => (p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend));
     const one = async (kind, id, key) => {
       const ck = kind + ':' + id;
       if (!thumbCache.has(ck)) thumbCache.set(ck, await api.thumbProvider(id, kind));
       if (thumbCache.get(ck)) out.set(key, thumbCache.get(ck));
     };
-    for (const b of want.slice(0, 400)) if (b.coverId) await one('cover', b.coverId, 'c2-' + b.coverId);
+    for (const b of shared.filter((x) => x.coverId).slice(0, 300)) await one('cover', b.coverId, 'c2-' + b.coverId);
+    // Introdução Geral longa: o texto completo vai à parte (no perfil só segue um excerto)
+    if (p.reviews) for (const b of shared.slice(0, 400)) { const full = (b.notes || '').trim(); if (full.length > 500) out.set('i-' + b.id, full.slice(0, 20000)); }
+    // fotografias das leituras mais recentes (atividade), se a pessoa deixar
+    if (p.activity && p.activityNotes !== false) for (const s of [...S.state.sessions].sort((a, b) => b.start - a.start).slice(0, 40)) if (s.photoId) await one('photo', s.photoId, 'p-' + s.id);
     return out;
   }
   async function syncCovers(thumbs) {
@@ -276,10 +287,10 @@
   }
 
   /* ---------- Capas dos amigos (descarregadas à medida que são precisas) ---------- */
-  const LISTS = ['reading', 'finished', 'favorites', 'recommendations'];
+  const LISTS = ['reading', 'finished', 'favorites', 'recommendations'], WITH_ACTIVITY = [...LISTS, 'activity'];
   function keysOf(uid, sections, limit) {
     const sh = cache.shared[uid] || {}, out = [];
-    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) if (it.ck) out.push(it.ck);
+    for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) { if (it.ck) out.push(it.ck); if (it.pk) out.push(it.pk); }
     return out;
   }
   async function fetchCovers(uid, keys) {
@@ -298,7 +309,7 @@
   /** Descarrega as capas das primeiras 12 entradas de cada lista (rápido) e avisa o ecrã. */
   async function prefetchCovers() {
     let total = 0;
-    for (const f of cache.following) if (f.status === 'accepted') total += await fetchCovers(f.uid, keysOf(f.uid, LISTS, 12));
+    for (const f of cache.following) if (f.status === 'accepted') total += await fetchCovers(f.uid, keysOf(f.uid, WITH_ACTIVITY, 12));
     if (total) hooks.change();
   }
   /** Descarrega capas/lombadas concretas (para o livro em 3D). Devolve { chave: data URL }. */
@@ -313,7 +324,7 @@
   /** Descarrega todas as capas de uma pessoa (para a lista completa). Devolve quantas chegaram. */
   async function loadCovers(handle, sections) {
     const p = byHandle(handle);
-    return p ? fetchCovers(p.uid, keysOf(p.uid, sections || LISTS)) : 0;
+    return p ? fetchCovers(p.uid, keysOf(p.uid, sections || WITH_ACTIVITY)) : 0;
   }
 
   /* ---------- Ações sobre pessoas ---------- */
@@ -339,7 +350,7 @@
   const sectionsOf = (handle) => { const p = byHandle(handle); return p ? SOC.fromServer(cache.shared[p.uid] || {}, coversByUid[p.uid]) : null; };
   function feed() {
     const out = [];
-    for (const f of cache.following) if (f.status === 'accepted') for (const a of (cache.shared[f.uid] || {}).activity || []) out.push({ u: f, p: a, when: a.when });
+    for (const f of cache.following) if (f.status === 'accepted') for (const a of (cache.shared[f.uid] || {}).activity || []) out.push({ u: f, p: { ...a, photoData: (coversByUid[f.uid] || {})[a.pk] || null }, when: a.when });
     return out.sort((x, y) => y.when - x.when);
   }
   function recommendations() {
