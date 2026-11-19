@@ -370,3 +370,13 @@ input[type=date], input[type=time] { width: 100%; padding: 10px 12px; border-rad
 .chip-check { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 13px; }
 .chip-check.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
 .chip-check input { margin: 0; }
+/* 1.9: Flows, Críticas Elaboradíssimas e botão «+» nas capas */
+.act-bar { margin-top: 4px; }
+.flow-btn.on { background: linear-gradient(135deg, #F2B632, #F07A1A); color: #fff; border-color: transparent; }
+.btn.small-btn.on:not(.flow-btn) { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
+.thread { padding: 10px 12px; border-radius: 12px; background: var(--soft); }
+.comment { padding: 8px 0; border-bottom: 1px solid var(--line); } .comment:last-child { border-bottom: 0; }
+.comment-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; font-size: 14px; }
+.thumb-cover { position: relative; display: inline-block; }
+.add-badge { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--card, #fff); background: var(--accent); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.add-badge.have { background: #3DBE7A; cursor: default; }

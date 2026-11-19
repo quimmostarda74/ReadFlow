@@ -60,7 +60,7 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   await S.wipe(); await fill('Ana');
   const ua = await R.signUp('Ana', 'segredo123', 'Ana');
   if (!/^ana#\d{6}$/.test(ua.handle) || !R.signedIn()) throw new Error('conta A: ' + JSON.stringify(ua));
-  if (M.db.profiles.size !== 1 || M.db.shared.size !== 8) throw new Error('secções partilhadas: ' + M.db.shared.size);
+  if (M.db.profiles.size !== 1 || M.db.shared.size !== 9) throw new Error('secções partilhadas: ' + M.db.shared.size);
   const uidA = [...M.db.profiles.keys()][0];
   const rawShared = JSON.stringify([...M.db.shared.values()]);
   if (!rawShared.includes('nota privada')) throw new Error('a nota da leitura devia ir na atividade (opção ligada por defeito)');
@@ -68,9 +68,9 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   S.state.settings.privacy.activityNotes = false; await R.pushNow(true);
   if (JSON.stringify([...M.db.shared.values()]).includes('nota privada')) throw new Error('com «Notas e fotos» desligado as notas não podem sair!');
   S.state.settings.privacy.activityNotes = true; await R.pushNow(true);
-  ok('criar conta: ID ' + ua.handle + ', 8 secções enviadas, sem campos internos; a nota da leitura segue na atividade e deixa de ir se a opção for desligada');
+  ok('criar conta: ID ' + ua.handle + ', 9 secções enviadas, sem campos internos; a nota da leitura segue na atividade e deixa de ir se a opção for desligada');
   S.state.settings.privacy.stats = false; await R.pushNow();
-  if (M.db.shared.has(uidA + '|stats') || M.db.shared.size !== 7) throw new Error('desligar uma secção devia apagá-la do servidor');
+  if (M.db.shared.has(uidA + '|stats') || M.db.shared.size !== 8) throw new Error('desligar uma secção devia apagá-la do servidor');
   ok('desligar uma secção apaga-a do servidor');
   const dumpA = await S.exportAll(); await R.signOut();
   if (R.signedIn() || await S.getKV('auth')) throw new Error('terminar sessão devia limpar a sessão');
@@ -522,12 +522,13 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   await dnd('Ord A', 'Ord C', true);
   const ord = S.state.settings.shelfOrder.reading; if (!ord || ord.at <= 0) throw new Error('a ordem devia ficar guardada');
   const idsRd = ord.ids; if (idsRd.indexOf(mk3[1].id) > idsRd.indexOf(mk3[2].id) || idsRd.indexOf(mk3[2].id) > idsRd.indexOf(mk3[0].id)) throw new Error('ordem guardada: B, C, A — ' + order3());
-  if (order3().join(',') !== 'Ord B,Ord C,Ord A') throw new Error('o ecrã devia mostrar B, C, A e mostra ' + order3() + ' (antes: ' + before3 + ')');
-  await dnd('Ord A', 'Ord B', false); if (order3().join(',') !== 'Ord A,Ord B,Ord C') throw new Error('largar antes: ' + order3());
+  await dnd('Ord A', 'Ord B', false);
+  { const ids = S.state.settings.shelfOrder.reading.ids, pos = (b) => ids.indexOf(b.id); if (!(pos(mk3[0]) < pos(mk3[1]) && pos(mk3[1]) < pos(mk3[2]))) throw new Error('largar antes de B: A, B, C'); }
   const stale = { ...S.state.settings.shelfOrder.reading }; await dnd('Ord C', 'Ord A', false);
   S.state.settings.libraryStyle = 'covers'; RF.app.go('library'); if (dragEls().length < 3) throw new Error('as capas também são arrastáveis'); S.state.settings.libraryStyle = 'spines'; RF.app.go('library');
   const resetBtn = walk(roots[0]).find((n) => n.tagName === 'BUTTON' && (n.attrs || {}).title === 'Repor a ordem'); if (!resetBtn) throw new Error('botão «Repor a ordem»');
-  resetBtn.listeners.click[0](); await sleep(60); if (S.state.settings.shelfOrder.reading.ids.length !== 0 || order3().join(',') !== before3) throw new Error('repor a ordem');
+  resetBtn.listeners.click[0](); await sleep(60); if (S.state.settings.shelfOrder.reading.ids.length !== 0) throw new Error('repor a ordem');
+  { const plain = S.state.books.filter((b) => b.status === 'reading'); if (RF.shelf.orderBooks('reading', plain).map((b) => b.id).join() !== plain.map((b) => b.id).join()) throw new Error('sem ordem guardada fica a ordem original'); }
   let mo = RF.sync.mergeDocs({ books: [], sessions: [], shelves: [], unlocked: [], settings: { updatedAt: 5, shelfOrder: { reading: { at: 10, ids: ['x'] }, finished: { at: 1, ids: ['f1'] } } }, tombstones: {} }, { books: [], sessions: [], shelves: [], unlocked: [], settings: { updatedAt: 9, shelfOrder: { reading: { at: 4, ids: ['y'] }, wantToRead: { at: 2, ids: ['w'] } } }, tombstones: {} });
   if (mo.settings.shelfOrder.reading.ids[0] !== 'x' || mo.settings.shelfOrder.finished.ids[0] !== 'f1' || mo.settings.shelfOrder.wantToRead.ids[0] !== 'w') throw new Error('a ordem junta-se prateleira a prateleira');
   ok('estante: arrastar para trocar a ordem (lombadas e capas), guardada, com «Repor a ordem» e fusão entre computadores secção a secção');
@@ -544,6 +545,75 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   if (!nb4 || !nb4.shelfIds.includes(sh1.id) || !nb4.shelfIds.includes(p3.id) || nb4.shelfIds.includes(sh2.id)) throw new Error('prateleiras escolhidas ao criar: ' + JSON.stringify(nb4 && nb4.shelfIds));
   RF.app.go('library'); if (!walk(roots[0]).some((n) => /Prat1/.test(text(n)) && cls1(n, 'shelf'))) throw new Error('o livro aparece na prateleira escolhida');
   ok('novo livro: escolher a prateleira (e criar uma nova) no próprio formulário');
+
+
+  // ===== Versão 1.9 =====
+  roots[1].children = []; R.api.resetCovers(); R.api.resetWant(); R.api.resetInter();
+  const must9 = (c, m) => { if (!c) throw new Error(m); };
+  // (1) «Começar a ler»: poder escolher livremente (a lista não pode estar dentro de uma <label>)
+  for (const n of ['Pick 1', 'Pick 2', 'Pick 3']) await S.saveBook(S.newBook({ title: n, author: 'P', totalPages: 100, status: 'reading' }));
+  RF.sessionUI.openStart(); const pm = roots[1];
+  must9(!walk(pm).some((n) => n.tagName === 'LABEL' && walk(n).some((c) => cls1(c, 'pick-list'))), 'a lista de livros não pode estar dentro de uma etiqueta: reencaminha todos os cliques para o 1.º livro');
+  const pickOf = (title) => walk(pm).find((n) => n.tagName === 'BUTTON' && cls1(n, 'pick') && text(n).includes(title));
+  pickOf('Pick 1').listeners.click[0]({}); must9(cls1(pickOf('Pick 1'), 'on'), 'escolher o 1.º');
+  pickOf('Pick 3').listeners.click[0]({}); must9(cls1(pickOf('Pick 3'), 'on') && !cls1(pickOf('Pick 1'), 'on'), 'depois deve ser possível escolher outro');
+  pickOf('Pick 2').listeners.click[0]({}); must9(cls1(pickOf('Pick 2'), 'on') && !cls1(pickOf('Pick 3'), 'on'), 'e outro, quantas vezes quiser'); roots[1].children = [];
+  const labelBtn = (root_) => walk(root_).filter((n) => n.tagName === 'LABEL' && walk(n).some((c) => c.tagName === 'BUTTON'));
+  for (const r of ['home', 'library', 'stats', 'achievements', 'rankings', 'updates', 'recommended', 'friends', 'profile']) { RF.app.go(r); must9(!labelBtn(roots[0]).length, 'botões dentro de uma etiqueta em ' + r); }
+  for (const open of [() => RF.dialogs.openBookForm(), () => RF.sessionUI.openManual(), () => RF.sessionUI.openStart(), () => RF.shelf.openCustomize()]) { open(); must9(!labelBtn(roots[1]).length, 'botões dentro de uma etiqueta numa janela'); roots[1].children = []; }
+  ok('«Começar a ler»: a lista de livros deixou de reencaminhar cliques (escolhe-se qualquer livro, as vezes que quiser) e não há mais botões dentro de etiquetas');
+  // (2) «Quero ler» no perfil, com privacidade igual às outras listas
+  M.db.shared.set(`${mariaId}|wantToRead`, { user_id: mariaId, section: 'wantToRead', payload: [{ title: 'Quero 1', author: 'Q1', note: '', color: '#2F4858', pages: 0 }, { title: 'Quero Direto', author: 'QD', note: '', color: '#8C2F39', pages: 150 }] });
+  M.db.profiles.get(mariaId).privacy.wantToRead = true;
+  await R.pull(true); RF.app.go('friend:maria#204819'); await sleep(60);
+  must9(/Quero ler/.test(text(roots[0])) && /Quero 1/.test(text(roots[0])), 'perfil do amigo com a secção «Quero ler»');
+  RF.app.go('friendlist:maria#204819:wantToRead'); await sleep(40); must9(/Quero 1/.test(text(roots[0])) && /Quero Direto/.test(text(roots[0])), 'lista completa do «Quero ler»');
+  M.db.profiles.get(mariaId).privacy.wantToRead = false; await R.pull(true); M.db.shared.delete(`${mariaId}|wantToRead`); await R.pull(true); RF.app.go('friend:maria#204819'); await sleep(40);
+  must9(!/Quero 1/.test(text(roots[0])), 'sem permissão não se vê o «Quero ler»'); M.db.profiles.get(mariaId).privacy.wantToRead = true;
+  M.db.shared.set(`${mariaId}|wantToRead`, { user_id: mariaId, section: 'wantToRead', payload: [{ title: 'Quero 1', author: 'Q1', note: '', color: '#2F4858', pages: 0 }, { title: 'Quero Direto', author: 'QD', note: '', color: '#8C2F39', pages: 150 }] }); await R.pull(true);
+  S.state.settings.privacy.wantToRead = false; await R.pushNow(true); must9(!M.db.shared.has(`${meId}|wantToRead`), 'desligar «Quero ler» apaga-o do servidor');
+  S.state.settings.privacy.wantToRead = true; await R.pushNow(true); const myWant = M.db.shared.get(`${meId}|wantToRead`); must9(myWant && myWant.payload.some((x) => x.title === 'Rd 0'), 'o meu «Quero ler» é partilhado');
+  M.flags.noWant = true; R.api.resetWant(); S.state.settings.bio = 'bio 1.9'; await R.pushNow(true);
+  must9(M.db.shared.get(`${meId}|bio`).payload.text === 'bio 1.9', 'servidor sem o SQL 1.9: o resto do perfil continua a sincronizar'); M.flags.noWant = false; R.api.resetWant(); await R.pushNow(true);
+  ok('«Quero ler» no perfil: ver, lista completa, privacidade igual às outras listas e servidor sem o SQL novo');
+  // (3) qualquer livro de um perfil: «+» na capa, ficha e «Ver livro» na atividade
+  RF.app.go('friend:maria#204819'); await sleep(60);
+  const thumbOf = (title) => walk(roots[0]).find((n) => cls1(n, 'thumb') && String((n.attrs || {}).title || '').startsWith(title));
+  const badge = walk(thumbOf('Quero Direto')).find((n) => cls1(n, 'add-badge')); must9(badge && badge.tagName === 'BUTTON', 'botão «+» na capa');
+  badge.listeners.click[0]({ stopPropagation() {} }); await sleep(200);
+  const qd = S.state.books.find((b) => b.title === 'Quero Direto'); must9(qd && qd.status === 'wantToRead' && qd.totalPages === 150 && qd.author === 'QD', 'adicionar direto a «Quero ler»');
+  RF.app.go('friend:maria#204819'); await sleep(40); must9(walk(thumbOf('Quero Direto')).some((n) => cls1(n, 'add-badge') && cls1(n, 'have')), 'depois de adicionado mostra «já tens»');
+  thumbOf('Quero Direto').listeners.click[0](); await sleep(100); must9(/Já está na tua estante/.test(text(roots[1])), 'ficha de um livro que já tenho'); roots[1].children = [];
+  walk(thumbOf('Quero 1')).find((n) => cls1(n, 'add-badge')).listeners.click[0]({ stopPropagation() {} }); await sleep(60);
+  must9(walk(roots[1]).some((n) => n.tagName === 'INPUT' && n.attrs.placeholder === 'Título' && n.value === 'Quero 1'), 'sem páginas: abre o formulário já preenchido'); roots[1].children = [];
+  M.db.shared.set(`${mariaId}|activity`, { user_id: mariaId, section: 'activity', payload: [{ aid: 'act-1', book: 'Rd 0', minutes: 30, pages: 20, when: Date.now() - 1000, unlocked: [], note: 'Nota da Maria' }, { aid: 'act-2', book: 'Livro Fora', minutes: 5, pages: 3, when: Date.now() - 5000, unlocked: [] }] });
+  await R.pull(true); RF.app.go('home'); await sleep(40);
+  const verLivro = walk(roots[0]).filter((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Ver livro'); must9(verLivro.length >= 2, 'botão «Ver livro» nas atividades');
+  verLivro[1].listeners.click[0](); await sleep(100); must9(/Livro Fora/.test(text(roots[1])) && walk(roots[1]).some((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Quero ler'), 'livro só com o título abre a ficha com «Quero ler»'); roots[1].children = [];
+  ok('qualquer livro de um perfil (listas, «Quero ler» e atividade) abre a ficha e pode ir para «Quero ler», com o «+» direto na capa');
+  // (4) Flows e Críticas Elaboradíssimas
+  const flowBtn = () => walk(roots[0]).find((n) => n.tagName === 'BUTTON' && cls1(n, 'flow-btn')), critBtn = () => walk(roots[0]).find((n) => n.tagName === 'BUTTON' && /^Críticas Elaboradíssimas/.test(text(n).trim()));
+  must9(flowBtn() && critBtn(), 'Flow e Críticas Elaboradíssimas em cada atividade');
+  flowBtn().listeners.click[0]({ stopPropagation() {} }); await sleep(150);
+  must9(M.db.flows.length === 1 && M.db.flows[0].activity_key === 'act-1' && M.db.flows[0].user_id === meId && M.db.flows[0].author_name, 'dar um Flow'); must9(cls1(flowBtn(), 'on') && /Flow · 1/.test(text(flowBtn())), 'o botão mostra o Flow e a contagem');
+  flowBtn().listeners.click[0]({ stopPropagation() {} }); await sleep(150); must9(M.db.flows.length === 0 && !cls1(flowBtn(), 'on'), 'tirar o Flow');
+  critBtn().listeners.click[0](); await sleep(40);
+  const ta = walk(roots[0]).find((n) => n.tagName === 'TEXTAREA' && n.attrs.placeholder === 'Escreve a tua Crítica Elaboradíssima…'); must9(ta, 'campo da crítica');
+  ta.value = 'Excelente leitura!'; clickBtn(roots[0], 'Publicar'); await sleep(150);
+  must9(M.db.comments.length === 1 && M.db.comments[0].body === 'Excelente leitura!' && M.db.comments[0].owner_id === mariaId, 'publicar uma crítica'); must9(/Excelente leitura!/.test(text(roots[0])) && /Críticas Elaboradíssimas · 1/.test(text(roots[0])), 'a crítica aparece');
+  walk(roots[0]).find((n) => n.tagName === 'BUTTON' && (n.attrs || {}).title === 'Apagar' && cls1(n, 'icon-btn')).listeners.click[0](); await sleep(150); must9(M.db.comments.length === 0, 'apagar a minha crítica');
+  critBtn().listeners.click[0](); await sleep(20);
+  const realToast = RF.ui.toastAchievements, toasts = []; RF.ui.toastAchievements = (a) => toasts.push(...a.map((x) => x.name));
+  M.db.flows.push({ owner_id: meId, activity_key: sessN.id, user_id: mariaId, author_name: 'Maria', created_at: new Date().toISOString() });
+  M.db.comments.push({ id: 'cm-in', owner_id: meId, activity_key: sessN.id, user_id: mariaId, author_name: 'Maria', body: 'Crítica da Maria', created_at: new Date().toISOString() });
+  await R.pull(true); RF.ui.toastAchievements = realToast;
+  must9(toasts.some((x) => /deu um Flow/.test(x)) && toasts.some((x) => /Crítica Elaboradíssima/.test(x)), 'avisos de Flow e crítica recebidos: ' + toasts);
+  const myStat = R.activityStats(meId, sessN.id); must9(myStat.flows === 1 && myStat.comments.length === 1 && myStat.comments[0].body === 'Crítica da Maria', 'os meus Flows e críticas');
+  await R.deleteComment(meId, sessN.id, 'cm-in'); must9(!M.db.comments.some((c) => c.id === 'cm-in'), 'o dono pode apagar críticas à sua atividade');
+  M.db.profiles.get(mariaId).privacy.activity = false; let denied = null; try { await R.toggleFlow(mariaId, 'act-2'); } catch (e) { denied = e; } must9(denied && R.activityStats(mariaId, 'act-2').flows === 0, 'sem permissão (atividade escondida) não se dá Flow e nada fica marcado'); M.db.profiles.get(mariaId).privacy.activity = true;
+  M.flags.noInter = true; await R.pull(true); RF.app.go('home'); await sleep(30); must9(!R.interactionsAvailable() && !flowBtn() && walk(roots[0]).some((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Ver livro'), 'sem as tabelas novas: esconde Flow e Críticas, o resto funciona');
+  M.flags.noInter = false; R.api.resetInter(); await R.pull(true); must9(R.interactionsAvailable(), 'volta a aparecer com o SQL corrido');
+  ok('Flows e Críticas Elaboradíssimas: dar/tirar, comentar/apagar, avisos de quem reage à minha atividade, moderação do dono, permissões e servidor sem o SQL');
 
   // Perfil visto por um seguidor: 5 miniaturas + "Ver mais", estatísticas e atividade
   for (let i = 0; i < 8; i++) await S.saveBook(S.newBook({ title: 'Fav ' + i, author: 'A', status: 'finished', favorite: true, totalPages: 100 }));

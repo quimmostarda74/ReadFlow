@@ -102,7 +102,7 @@
         const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
         if (!UI.hasModal() && !typing && ['home', 'friends', 'recommended'].includes(base)) render();
       },
-      notify: (kind, person) => UI.toastAchievements([{ type: 'info', name: t(kind === 'request' ? '{name} quer seguir-te' : '{name} aceitou o teu pedido', { name: person.name }) }])
+      notify: (kind, person) => UI.toastAchievements([{ type: 'info', name: t(kind === 'request' ? '{name} quer seguir-te' : kind === 'flow' ? '{name} deu um Flow à tua leitura' : kind === 'comment' ? '{name} deixou uma Crítica Elaboradíssima' : '{name} aceitou o teu pedido', { name: person.name || t('Alguém') }) }])
     });
     await RF.remote.restore();
     render();

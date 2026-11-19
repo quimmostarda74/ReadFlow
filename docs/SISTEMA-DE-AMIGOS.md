@@ -50,3 +50,8 @@ Os dados de cada pessoa (livros, leituras, estantes, imagens) não passam pelo s
 ## Introdução Geral, notas e fotografias das leituras (1.8)
 - O que a pessoa escreve na **Introdução Geral** de um livro viaja completo (até 20 000 caracteres): um excerto de 500 caracteres no perfil e o texto inteiro na tabela `covers` (chave `i-<livro>`), que o leitor descarrega ao abrir a ficha do livro.
 - A **atividade** pode incluir a nota escrita numa leitura (até 1 500 caracteres) e uma fotografia reduzida (chave `p-<leitura>`, até 420 px). Opção **Notas e fotos das leituras na atividade** em Amigos > Privacidade (ligada por defeito; só funciona com «Atividade de leitura» ligada). Ao desligar, as notas deixam de ir e as miniaturas são apagadas do servidor.
+
+## «Quero ler», Flows e Críticas Elaboradíssimas (1.9)
+- **Quero ler** é mais uma secção do perfil, com a mesma privacidade das outras listas (Amigos > Privacidade > «Quero ler»). Em qualquer livro de um perfil há um «+» para o adicionares ao teu «Quero ler».
+- **Flows** (gostos) e **Críticas Elaboradíssimas** (comentários, até 600 caracteres) aplicam-se a cada atividade de leitura. Só o dono e os seguidores aprovados que podem ver a atividade reagem e leem. O dono pode apagar qualquer crítica à sua atividade; cada pessoa apaga as suas. Quem reage à tua atividade gera um aviso.
+- Tabelas `activity_flows` e `activity_comments`, com limites por hora. Correr `docs/supabase-update-1.9.0.sql`; sem isso a app funciona na mesma, só sem estas funções.

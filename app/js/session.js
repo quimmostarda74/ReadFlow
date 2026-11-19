@@ -144,7 +144,7 @@
       if (initial) pageInput.value = initial.currentPage;
       paint();
       return h('div', { class: 'dialog wide' }, UI.modalHeader(t('Nova sessão'), api),
-        h('label', { class: 'field' }, h('span', null, t('Que livro vais ler?')), list),
+        h('div', { class: 'field' }, h('span', null, t('Que livro vais ler?')), list),
         h('label', { class: 'field' }, h('span', null, t('Página em que começas')), pageInput),
         h('div', { class: 'row between center' }, h('button', { class: 'btn ghost', onClick: () => { api.close(); openManual(selected); } }, icon('edit', 16), t('Registar leitura passada')),
           h('div', { class: 'row gap' }, h('button', { class: 'btn', onClick: () => api.close() }, t('Cancelar')), startBtn)));

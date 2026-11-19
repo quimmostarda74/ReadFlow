@@ -60,7 +60,44 @@
       unlockChips(s.unlocked),
       h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(s.durationSeconds)), metric(t('Páginas'), String(L.pagesRead(s))), metric(t('Ritmo'), L.pace(L.pagesPerHour(s)))),
       photo ? h('img', { class: 'session-photo', src: photo, alt: '' }) : null,
-      s.notes ? h('p', { class: 'muted' }, s.notes) : null);
+      s.notes ? h('p', { class: 'muted' }, s.notes) : null,
+      RF.remote.signedIn() && S.state.settings.privacy.activity && SOC.activityOf(S.state, 60).some((a) => a.aid === s.id) ? activityActions(RF.remote.state.user.uid, s.id, null) : null);
+  }
+
+  /* ---------- Flows (gostos) e Críticas Elaboradíssimas (comentários) ---------- */
+  const openThreads = new Set();                       // atividades com as críticas abertas
+  const oops = (e) => UI.toastAchievements([{ type: 'info', name: RF.remote.explain ? RF.remote.explain(e) : t('Algo correu mal. Tenta outra vez.') }]);
+  /** Procura um livro (pelo título) nas listas de uma pessoa; se não houver, devolve só o título. */
+  function findBookByTitle(handle, title) {
+    const sec = RF.remote.sectionsOf(handle) || {};
+    for (const key of ['reading', 'finished', 'favorites', 'recs', 'wantToRead']) { const f = (sec[key] || []).find((x) => String(x.title || '').toLowerCase() === String(title || '').toLowerCase()); if (f) return f; }
+    return { title, author: '', color: SOC.hue(String(title)), pages: 0 };
+  }
+  function commentThread(ownerUid, aid, st) {
+    const R = RF.remote, me = R.state.user.uid;
+    const box = h('textarea', { rows: 2, maxlength: '600', placeholder: t('Escreve a tua Crítica Elaboradíssima…') });
+    const post = h('button', { class: 'btn primary small-btn', onClick: async () => { const v = box.value.trim(); if (!v) return; post.disabled = true; try { await R.addComment(ownerUid, aid, v); box.value = ''; } catch (e) { oops(e); } RF.app.refresh(); } }, t('Publicar'));
+    return h('div', { class: 'thread stack tight' },
+      st.comments.length ? h('div', { class: 'stack tight' }, ...st.comments.map((c) => h('div', { class: 'comment' },
+        h('div', { class: 'row between center' }, h('strong', { class: 'small' }, c.name || t('Alguém')), h('span', { class: 'row gap center' }, h('span', { class: 'muted tiny' }, agoFromMs(c.at)),
+          c.u === me || ownerUid === me ? h('button', { class: 'icon-btn', title: t('Apagar'), onClick: async () => { try { await R.deleteComment(ownerUid, aid, c.id); } catch (e) { oops(e); } RF.app.refresh(); } }, icon('trash', 14)) : null)),
+        h('div', { class: 'comment-text' }, c.body)))) : h('span', { class: 'muted small' }, t('Ainda ninguém deixou uma Crítica Elaboradíssima.')),
+      box, h('div', { class: 'row end' }, post));
+  }
+  /** Linha com «Flow», «Críticas Elaboradíssimas» e «Ver livro» de uma atividade. ctx: { handle, book } para abrir o livro. */
+  function activityActions(ownerUid, aid, ctx) {
+    const R = RF.remote, can = !!aid && R.signedIn() && R.interactionsAvailable(), btns = [];
+    let thread = null;
+    if (can) {
+      const st = R.activityStats(ownerUid, aid), key = ownerUid + '|' + aid, open = openThreads.has(key);
+      btns.push(h('button', { class: 'btn small-btn flow-btn' + (st.flowed ? ' on' : ''), title: st.who.length ? st.who.join(', ') : t('Dar um Flow'), onClick: async (e) => { e.stopPropagation(); try { await R.toggleFlow(ownerUid, aid); } catch (x) { oops(x); } RF.app.refresh(); } },
+        icon('flame', 14, { fill: st.flowed }), t('Flow') + (st.flows ? ' · ' + st.flows : '')));
+      btns.push(h('button', { class: 'btn small-btn' + (open ? ' on' : ''), onClick: () => { if (open) openThreads.delete(key); else openThreads.add(key); RF.app.refresh(); } },
+        icon('edit', 14), t('Críticas Elaboradíssimas') + (st.comments.length ? ' · ' + st.comments.length : '')));
+      if (open) thread = commentThread(ownerUid, aid, st);
+    }
+    if (ctx && ctx.handle && ctx.book) btns.push(h('button', { class: 'btn small-btn', onClick: () => showBook(findBookByTitle(ctx.handle, ctx.book), ctx.handle) }, icon('book', 14), t('Ver livro')));
+    return btns.length ? h('div', { class: 'stack tight act-bar' }, h('div', { class: 'row gap wrap' }, ...btns), thread) : null;
   }
 
   /** O que a pessoa deixou escrito numa leitura e a fotografia (partilhados na atividade, se ela deixar). */
@@ -79,7 +116,8 @@
         h('div', null, h('div', { class: 'strong' }, t('{name} leu «{book}»', { name: u.name, book: p.book })), h('div', { class: 'muted small' }, agoFromMs(p.when))))),
       unlockChips(p.unlocked),
       h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(p.minutes * 60)), metric(t('Páginas'), String(p.pages)), metric(t('Ritmo'), L.pace(p.minutes > 0 ? p.pages / (p.minutes / 60) : 0))),
-      ...actExtras(p));
+      ...actExtras(p),
+      activityActions(u.uid, p.aid, { handle: u.id, book: p.book }));
   }
   const friendPosts = () => (RF.remote.signedIn() ? RF.remote.feed() : []);
 
@@ -324,9 +362,9 @@
       const keys = [it.ck && !it.coverData ? it.ck : null, it.rk || null].filter(Boolean);
       if (keys.length) { const got = await RF.remote.loadKeys(handle, keys); item = { ...it, coverData: it.coverData || (it.ck && got[it.ck]) || null, review: (it.rk && got[it.rk]) || it.review }; }
     }
-    UI.openBookInfo(item, { action: handle && !haveBook(item.title, item.author) ? (api) => h('button', { class: 'btn', onClick: () => { api.close(); addToWishlist(item); } }, icon('plus', 14), t('Quero ler')) : null });
+    UI.openBookInfo(item, { action: handle ? (api) => (haveBook(item.title, item.author) ? h('span', { class: 'chip' }, icon('check', 12), t('Já está na tua estante')) : h('button', { class: 'btn', onClick: () => { api.close(); addToWishlist(item); } }, icon('plus', 14), t('Quero ler'))) : null });
   }
-  const haveBook = (title, author) => S.state.books.some((b) => (b.title + '|' + b.author).toLowerCase() === (title + '|' + author).toLowerCase());
+  const haveBook = (title, author) => S.state.books.some((b) => b.title.toLowerCase() === String(title || '').toLowerCase() && (!author || b.author.toLowerCase() === String(author).toLowerCase()));
   const TAGS = { top: 'Mais vendido', hot: 'Em alta', new: 'Novidade' };
 
   function recCard(it, extra) {
@@ -478,12 +516,18 @@
   }
 
   /* ---------- Perfil público (de um amigo ou o meu em pré-visualização) ---------- */
-  const KIND_TITLES = { reading: 'A ler agora', favorites: 'Favoritos', finished: 'Livros lidos', recs: 'Recomendações', activity: 'Atividade' };
-  const thumb = (it, withNote, ctx) => h('div', { class: 'thumb link', title: it.title + (it.author ? ' — ' + it.author : ''), onClick: () => ctx && ctx.onBook && ctx.onBook(it) }, UI.coverEl(it, 76), h('span', { class: 'small strong clip2' }, it.title),
+  const KIND_TITLES = { reading: 'A ler agora', favorites: 'Favoritos', finished: 'Livros lidos', recs: 'Recomendações', wantToRead: 'Quero ler', activity: 'Atividade' };
+  /** Botão «+» (adicionar a «Quero ler») ou «✓» (já tens) por cima da capa. */
+  const quickAdd = (it, ctx) => (ctx && ctx.canAdd
+    ? (haveBook(it.title, it.author) ? h('span', { class: 'add-badge have', title: t('Já está na tua estante') }, icon('check', 11))
+      : h('button', { class: 'add-badge', title: t('Adicionar a «Quero ler»'), onClick: (e) => { e.stopPropagation(); addToWishlist(it); } }, icon('plus', 12)))
+    : null);
+  const thumb = (it, withNote, ctx) => h('div', { class: 'thumb link', title: it.title + (it.author ? ' — ' + it.author : ''), onClick: () => ctx && ctx.onBook && ctx.onBook(it) }, h('div', { class: 'thumb-cover' }, UI.coverEl(it, 76), quickAdd(it, ctx)), h('span', { class: 'small strong clip2' }, it.title),
     it.rating > 0 ? UI.starsStatic(it.rating, 12) : null,
     (withNote && it.note) ? h('span', { class: 'muted tiny clip2' }, '“' + it.note + '”') : (it.review ? h('span', { class: 'muted tiny clip2' }, it.review) : null));
-  const activityLine = (a) => h('div', { class: 'card flat stack tight session-card' }, h('div', { class: 'row between center' }, h('span', { class: 'strong serif clip' }, a.book || t('Livro removido')), h('span', { class: 'muted small' }, agoFromMs(a.when))),
-    unlockChips(a.unlocked), h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(a.minutes * 60)), metric(t('Páginas'), String(a.pages)), metric(t('Ritmo'), L.pace(a.minutes > 0 ? a.pages / (a.minutes / 60) : 0))), ...actExtras(a));
+  const activityLine = (a, owner) => h('div', { class: 'card flat stack tight session-card' }, h('div', { class: 'row between center' }, h('span', { class: 'strong serif clip' }, a.book || t('Livro removido')), h('span', { class: 'muted small' }, agoFromMs(a.when))),
+    unlockChips(a.unlocked), h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(a.minutes * 60)), metric(t('Páginas'), String(a.pages)), metric(t('Ritmo'), L.pace(a.minutes > 0 ? a.pages / (a.minutes / 60) : 0))), ...actExtras(a),
+    owner ? activityActions(owner.uid, a.aid, { handle: owner.handle, book: a.book }) : null);
 
   function publicView(p, ctx) {
     const sec = p.sections;
@@ -492,7 +536,7 @@
       if (items === undefined) return lockedCard(title, ic);
       return h('div', { class: 'card stack' }, h('div', { class: 'row between center' }, h('h3', { class: 'row gap center' }, icon(ic, 16), title, h('span', { class: 'count' }, String(items.length))),
         items.length > MAX_SHOWN ? h('button', { class: 'btn small-btn', onClick: () => ctx.onMore(key) }, t('Ver mais')) : null),
-        items.length ? h('div', { class: 'thumb-row' }, ...items.slice(0, MAX_SHOWN).map((it) => thumb(it, key === 'recs', ctx))) : h('span', { class: 'muted small' }, '—'));
+        items.length ? h('div', { class: 'thumb-row' }, ...items.slice(0, MAX_SHOWN).map((it) => thumb(it, key === 'recs', { ...ctx, canAdd: p.canAdd }))) : h('span', { class: 'muted small' }, '—'));
     };
     const st = sec.stats;
     return h('div', { class: 'stack' },
@@ -501,10 +545,10 @@
       h('div', { class: 'card' }, UI.levelBadge(p.xp || 0)),
       st !== undefined ? h('div', { class: 'tiles three' }, tile('clock', t('Horas lidas'), String(st.hours)), tile('file', t('Páginas'), String(st.pages)), tile('check', t('Livros terminados'), String(st.books)),
         tile('list', t('Sessões'), String(st.sessions || 0)), tile('flame', t('Sequência atual'), tn('days', st.streak || 0)), tile('activity', t('Ritmo médio'), L.pace(st.pace || 0))) : lockedCard(t('Estatísticas'), 'chart'),
-      bookSection('reading', 'book'), bookSection('favorites', 'heart'), bookSection('finished', 'check'), bookSection('recs', 'gift'),
+      bookSection('reading', 'book'), bookSection('favorites', 'heart'), bookSection('finished', 'check'), bookSection('recs', 'gift'), bookSection('wantToRead', 'bookmark'),
       sec.activity === undefined ? lockedCard(t('Atividade'), 'activity') : h('div', { class: 'card stack' }, h('div', { class: 'row between center' }, h('h3', { class: 'row gap center' }, icon('activity', 16), t('Atividade'), h('span', { class: 'count' }, String(sec.activity.length))),
         sec.activity.length > 3 ? h('button', { class: 'btn small-btn', onClick: () => ctx.onMore('activity') }, t('Ver mais')) : null),
-        sec.activity.length ? h('div', { class: 'stack' }, ...sec.activity.slice(0, 3).map(activityLine)) : h('span', { class: 'muted small' }, '—')),
+        sec.activity.length ? h('div', { class: 'stack' }, ...sec.activity.slice(0, 3).map((a) => activityLine(a, p.owner))) : h('span', { class: 'muted small' }, '—')),
       sec.achievements === undefined ? lockedCard(t('Conquistas'), 'trophy') : h('div', { class: 'card stack' }, h('h3', { class: 'row gap center' }, icon('trophy', 16), t('Conquistas'), h('span', { class: 'count' }, String(sec.achievements.length))),
         sec.achievements.length ? h('div', { class: 'medals' }, ...sec.achievements.map((id) => L.achById[id]).filter(Boolean).map((a) => h('div', { class: 'medal-btn', title: medalTip(a) }, UI.medal(a, true, 52), h('span', { class: 'medal-name' }, L.achTitle(a))))) : h('span', { class: 'muted small' }, '—')));
   }
@@ -514,13 +558,13 @@
     const items = p.sections[kind] || [];
     return h('div', { class: 'stack' }, h('button', { class: 'btn ghost back', onClick: onBack }, icon('back', 18), t('Voltar')),
       h('div', { class: 'row gap center' }, UI.avatar(40, { name: p.name, color: p.color, photo: p.photo }), h('div', null, h('h2', { class: 'serif' }, t(KIND_TITLES[kind])), h('div', { class: 'muted small' }, `${p.name} · ${items.length}`))),
-      kind === 'activity' ? h('div', { class: 'stack' }, ...items.map(activityLine))
+      kind === 'activity' ? h('div', { class: 'stack' }, ...items.map((a) => activityLine(a, p.owner)))
         : h('div', { class: 'full-list' }, ...items.map((it) => h('div', { class: 'full-item link', title: it.title, onClick: () => onBook && onBook(it) }, UI.coverEl(it, 96), h('div', { class: 'strong small clip2' }, it.title), h('div', { class: 'muted tiny clip' }, it.author),
           it.rating > 0 ? UI.starsStatic(it.rating, 12) : null, kind === 'recs' && it.note ? h('div', { class: 'muted tiny clip2' }, '“' + it.note + '”') : null, it.review ? h('div', { class: 'muted tiny clip3' }, it.review) : null,
           p.canAdd ? (haveBook(it.title, it.author) ? h('span', { class: 'muted tiny' }, t('Já está na tua biblioteca')) : h('button', { class: 'btn small-btn', onClick: (e) => { e.stopPropagation(); addToWishlist(it); } }, icon('plus', 12), t('Quero ler'))) : null))));
   }
 
-  const remotePublic = (f) => ({ name: f.name, id: f.id, color: f.color, photo: f.avatar, xp: f.xp || 0, sections: RF.remote.sectionsOf(f.id) || {}, canAdd: true });
+  const remotePublic = (f) => ({ name: f.name, id: f.id, color: f.color, photo: f.avatar, xp: f.xp || 0, owner: { uid: f.uid, handle: f.id }, sections: RF.remote.sectionsOf(f.id) || {}, canAdd: true });
   function openMyPreview() {
     const mine = SOC.myPublicProfile(S);
     mine.photo = S.imgUrl(mine.photoId);

@@ -244,3 +244,85 @@ drop policy if exists vault_update on public.vault;
 create policy vault_update on public.vault for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 drop policy if exists vault_delete on public.vault;
 create policy vault_delete on public.vault for delete to authenticated using (user_id = auth.uid());
+
+-- 8) «Quero ler», Flows e Críticas Elaboradíssimas (versão 1.9) ------------------------
+-- 1) A secção «Quero ler» passa a ser aceite nas partilhas ---------------------------------
+do $$
+declare c record;
+begin
+  for c in select conname from pg_constraint
+           where conrelid = 'public.shared'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%section%' loop
+    execute format('alter table public.shared drop constraint %I', c.conname);
+  end loop;
+end $$;
+alter table public.shared add constraint shared_section_check
+  check (section in ('bio','reading','finished','favorites','recommendations','wantToRead','achievements','activity','stats'));
+
+-- 2) As capas dos livros de «Quero ler» também se veem (só seguidores aprovados, como nas outras listas)
+drop policy if exists covers_select on public.covers;
+create policy covers_select on public.covers for select to authenticated
+  using (user_id = auth.uid() or public.can_view_any(user_id, array['reading','finished','favorites','recommendations','wantToRead']));
+
+-- 3) Flows: um por pessoa e por atividade -------------------------------------------------------
+create table if not exists public.activity_flows (
+  owner_id     uuid not null references public.profiles(id) on delete cascade,      -- dono da atividade
+  activity_key text not null check (char_length(activity_key) <= 60),
+  user_id      uuid not null references public.profiles(id) on delete cascade,      -- quem deu o Flow
+  author_name  text not null default '' check (char_length(author_name) <= 40),
+  created_at   timestamptz not null default now(),
+  primary key (owner_id, activity_key, user_id)
+);
+create index if not exists activity_flows_owner_idx on public.activity_flows (owner_id);
+
+-- 4) Críticas Elaboradíssimas ---------------------------------------------------------------------
+create table if not exists public.activity_comments (
+  id           uuid primary key default gen_random_uuid(),
+  owner_id     uuid not null references public.profiles(id) on delete cascade,
+  activity_key text not null check (char_length(activity_key) <= 60),
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  author_name  text not null default '' check (char_length(author_name) <= 40),
+  body         text not null check (char_length(body) between 1 and 600),
+  created_at   timestamptz not null default now()
+);
+create index if not exists activity_comments_owner_idx on public.activity_comments (owner_id, activity_key);
+
+alter table public.activity_flows enable row level security;
+alter table public.activity_comments enable row level security;
+revoke all on public.activity_flows from anon;
+revoke all on public.activity_comments from anon;
+grant select, insert, delete on public.activity_flows to authenticated;
+grant select, insert, delete on public.activity_comments to authenticated;
+
+-- Quem vê: o dono, o autor e os seguidores aprovados do dono (se ele deixar a atividade visível em Privacidade).
+drop policy if exists flows_select on public.activity_flows;
+create policy flows_select on public.activity_flows for select to authenticated
+  using (user_id = auth.uid() or owner_id = auth.uid() or public.can_view(owner_id, 'activity'));
+drop policy if exists flows_insert on public.activity_flows;
+create policy flows_insert on public.activity_flows for insert to authenticated
+  with check (user_id = auth.uid() and (owner_id = auth.uid() or public.can_view(owner_id, 'activity')));
+drop policy if exists flows_delete on public.activity_flows;
+create policy flows_delete on public.activity_flows for delete to authenticated using (user_id = auth.uid());
+
+drop policy if exists comments_select on public.activity_comments;
+create policy comments_select on public.activity_comments for select to authenticated
+  using (user_id = auth.uid() or owner_id = auth.uid() or public.can_view(owner_id, 'activity'));
+drop policy if exists comments_insert on public.activity_comments;
+create policy comments_insert on public.activity_comments for insert to authenticated
+  with check (user_id = auth.uid() and (owner_id = auth.uid() or public.can_view(owner_id, 'activity')));
+drop policy if exists comments_delete on public.activity_comments;       -- apaga o autor ou o dono da atividade (moderação)
+create policy comments_delete on public.activity_comments for delete to authenticated using (user_id = auth.uid() or owner_id = auth.uid());
+
+-- 5) Limites por hora (evita abusos) ----------------------------------------------------------------
+create or replace function public.interactions_limit() returns trigger language plpgsql as $$
+begin
+  if tg_table_name = 'activity_comments' then
+    if (select count(*) from public.activity_comments where user_id = new.user_id and created_at > now() - interval '1 hour') >= 40 then raise exception 'rate_limit'; end if;
+  else
+    if (select count(*) from public.activity_flows where user_id = new.user_id and created_at > now() - interval '1 hour') >= 200 then raise exception 'rate_limit'; end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists comments_limit_trg on public.activity_comments;
+create trigger comments_limit_trg before insert on public.activity_comments for each row execute function public.interactions_limit();
+drop trigger if exists flows_limit_trg on public.activity_flows;
+create trigger flows_limit_trg before insert on public.activity_flows for each row execute function public.interactions_limit();

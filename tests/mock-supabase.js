@@ -5,8 +5,8 @@ const uuid = () => crypto.randomUUID();
 
 function createMock(opts = {}) {
   const key = opts.key || 'test-key';
-  const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map(), covers: new Map(), vault: new Map() };
-  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false, noVault: false };
+  const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map(), covers: new Map(), vault: new Map(), flows: [], comments: [] };
+  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false, noVault: false, noWant: false, noInter: false };
   const log = [];
 
   const res = (status, body) => ({ ok: status >= 200 && status < 300, status, text: async () => (body === undefined || body === null ? '' : JSON.stringify(body)) });
@@ -145,6 +145,7 @@ function createMock(opts = {}) {
       if (method === 'POST') {
         const list = Array.isArray(body) ? body : [body];
         if (list.some((r) => r.user_id !== me)) return err(403, '42501', 'new row violates row-level security policy');
+        if (flags.noWant && list.some((r) => r.section === 'wantToRead')) return err(400, '23514', 'new row for relation "shared" violates check constraint "shared_section_check"');   // servidor sem o SQL 1.9
         for (const r of list) db.shared.set(`${r.user_id}|${r.section}`, { user_id: r.user_id, section: r.section, payload: r.payload });
         return res(201);
       }
@@ -153,6 +154,32 @@ function createMock(opts = {}) {
         if (eq(q.get('user_id')) !== me) return res(204);
         for (const s of secs) db.shared.delete(`${me}|${s}`);
         return res(204);
+      }
+    }
+    if (path === '/rest/v1/activity_flows' || path === '/rest/v1/activity_comments') {
+      if (flags.noInter) return err(404, 'PGRST205', 'Could not find the table in the schema cache');
+      const isFlow = path.endsWith('flows'), table = isFlow ? db.flows : db.comments;
+      const sees = (r) => r.user_id === me || r.owner_id === me || canView(me, r.owner_id, 'activity');   // RLS (select)
+      if (method === 'GET') {
+        const owners = inList(q.get('owner_id')) || [];
+        return res(200, table.filter((r) => owners.includes(r.owner_id) && sees(r)).map((r) => ({ ...r })));
+      }
+      if (method === 'POST') {
+        const r = Array.isArray(body) ? body[0] : body;
+        if (!r || r.user_id !== me || !(r.owner_id === me || canView(me, r.owner_id, 'activity'))) return err(403, '42501', 'new row violates row-level security policy');
+        if (isFlow) { if (!table.some((x) => x.owner_id === r.owner_id && x.activity_key === r.activity_key && x.user_id === me)) table.push({ ...r, created_at: new Date().toISOString() }); return res(201); }
+        if (!r.body || r.body.length > 600) return err(400, '23514', 'check violation');
+        const row = { ...r, id: 'c' + (table.length + 1) + '-' + Math.random().toString(16).slice(2, 8), created_at: new Date().toISOString() }; table.push(row);
+        return res(201, [row]);
+      }
+      if (method === 'DELETE') {
+        const keep = [];
+        for (const r of table) {
+          const hit = (q.get('id') ? r.id === eq(q.get('id')) : (r.owner_id === eq(q.get('owner_id')) && r.activity_key === eq(q.get('activity_key')) && r.user_id === eq(q.get('user_id'))));
+          const mayDelete = isFlow ? r.user_id === me : (r.user_id === me || r.owner_id === me);
+          if (!(hit && mayDelete)) keep.push(r);
+        }
+        table.length = 0; table.push(...keep); return res(204);
       }
     }
     if (path === '/rest/v1/vault') {

@@ -16,7 +16,9 @@
   const state = { user: null, lastSync: 0, syncing: false, offline: false };
   const cache = { following: [], followers: [], shared: {}, byHandle: {} };
   let known = null, lastHash = '', pushTimer = null, timers = [], hooks = { change() {}, notify() {} };
-  let serverCovers = null, coversOff = false;           // capas já enviadas / tabela de capas indisponível
+  let serverCovers = null, coversOff = false, wantOff = false;           // capas já enviadas / tabela de capas indisponível
+  // Flows (gostos) e Críticas Elaboradíssimas (comentários) nas atividades: flows[dono][atividade] = [...], comments[dono][atividade] = [...]
+  const inter = { flows: {}, comments: {}, off: false, known: null };
   const thumbCache = new Map();                          // id da capa -> miniatura (data URL)
   const coversByUid = {};                                // uid -> { ck: data URL | null }
 
@@ -60,7 +62,7 @@
   }
   async function localSignOut() {
     if (root.RF.sync) root.RF.sync.onSignOut();
-    session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = ''; serverCovers = null; coversOff = false;
+    session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = ''; serverCovers = null; coversOff = false; wantOff = false; inter.flows = {}; inter.comments = {}; inter.known = null;
     await S.deleteKV('auth');
   }
   const loadProfile = async () => {
@@ -190,11 +192,11 @@
       } catch (e) { resolve(null); }
     });
   }
-  const api = { thumbProvider: defaultThumb, resetCovers() { coversOff = false; serverCovers = null; } };   // resetCovers: usado nos testes
+  const api = { thumbProvider: defaultThumb, resetCovers() { coversOff = false; serverCovers = null; }, resetWant() { wantOff = false; }, resetInter() { inter.off = false; inter.known = null; } };   // resetCovers: usado nos testes
   /** Capas dos livros que vão ser partilhados (só das listas ligadas em Privacidade). */
   async function coverThumbs() {
     const p = S.state.settings.privacy, out = new Map();
-    const shared = S.state.books.filter((b) => (p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend));
+    const shared = S.state.books.filter((b) => (p.reading && b.status === 'reading') || (p.finished && b.status === 'finished') || (p.favorites && b.favorite) || (p.recommendations && b.recommend) || (p.wantToRead !== false && b.status === 'wantToRead'));
     const one = async (kind, id, key) => {
       const ck = kind + ':' + id;
       if (!thumbCache.has(ck)) thumbCache.set(ck, await api.thumbProvider(id, kind));
@@ -239,8 +241,13 @@
     const hash = JSON.stringify({ profile, sections });
     if (!force && hash === lastHash) return;
     await rest('PATCH', 'profiles', `id=eq.${session.uid}`, { ...profile, updated_at: new Date().toISOString() });
-    const rows = Object.entries(sections).map(([section, payload]) => ({ user_id: session.uid, section, payload, updated_at: new Date().toISOString() }));
+    const allRows = Object.entries(sections).map(([section, payload]) => ({ user_id: session.uid, section, payload, updated_at: new Date().toISOString() }));
+    const rows = allRows.filter((r) => r.section !== 'wantToRead'), wantRows = allRows.filter((r) => r.section === 'wantToRead');
     if (rows.length) await rest('POST', 'shared', 'on_conflict=user_id,section', rows, 'resolution=merge-duplicates');
+    if (wantRows.length && !wantOff) {
+      try { await rest('POST', 'shared', 'on_conflict=user_id,section', wantRows, 'resolution=merge-duplicates'); }
+      catch (e) { if (e.code === 'network') throw e; wantOff = true; }      // o servidor ainda não conhece a secção «Quero ler» (falta o SQL 1.9)
+    }
     const off = SOC.ALL_SECTIONS.filter((s) => !(s in sections));
     if (off.length) await rest('DELETE', 'shared', `user_id=eq.${session.uid}&section=in.(${off.join(',')})`);
     await syncCovers(thumbs);
@@ -281,13 +288,14 @@
         for (const f of following) if (f.status === 'accepted' && !known.acc.has(f.uid)) hooks.notify('accepted', f);
       }
       known = snapshot; state.lastSync = Date.now(); state.offline = false;
+      await pullInteractions();
       prefetchCovers();
     } catch (e) { if (e.code === 'network') state.offline = true; else throw e; }
     finally { state.syncing = false; hooks.change(); }
   }
 
   /* ---------- Capas dos amigos (descarregadas à medida que são precisas) ---------- */
-  const LISTS = ['reading', 'finished', 'favorites', 'recommendations'], WITH_ACTIVITY = [...LISTS, 'activity'];
+  const LISTS = ['reading', 'finished', 'favorites', 'recommendations', 'wantToRead'], WITH_ACTIVITY = [...LISTS, 'activity'];
   function keysOf(uid, sections, limit) {
     const sh = cache.shared[uid] || {}, out = [];
     for (const s of sections) for (const it of (sh[s] || []).slice(0, limit || 1e9)) { if (it.ck) out.push(it.ck); if (it.pk) out.push(it.pk); }
@@ -325,6 +333,51 @@
   async function loadCovers(handle, sections) {
     const p = byHandle(handle);
     return p ? fetchCovers(p.uid, keysOf(p.uid, sections || WITH_ACTIVITY)) : 0;
+  }
+
+  /* ---------- Flows e Críticas Elaboradíssimas ---------- */
+  async function pullInteractions() {
+    if (inter.off || !session) return;
+    const owners = [session.uid, ...cache.following.filter((f) => f.status === 'accepted').map((f) => f.uid)], list = owners.join(',');
+    let fl, cm;
+    try {
+      fl = (await rest('GET', 'activity_flows', `select=owner_id,activity_key,user_id,author_name,created_at&owner_id=in.(${list})&order=created_at.asc&limit=3000`)) || [];
+      cm = (await rest('GET', 'activity_comments', `select=id,owner_id,activity_key,user_id,author_name,body,created_at&owner_id=in.(${list})&order=created_at.asc&limit=2000`)) || [];
+    } catch (e) { if (e.code === 'network') throw e; inter.off = true; return; }      // as tabelas ainda não existem (falta o SQL 1.9)
+    const flows = {}, comments = {}, seen = new Set(), fresh = [];
+    for (const r of fl) { ((flows[r.owner_id] = flows[r.owner_id] || {})[r.activity_key] = (flows[r.owner_id] || {})[r.activity_key] || []).push({ u: r.user_id, name: r.author_name || '', at: Date.parse(r.created_at) || 0 }); const k = 'f|' + r.owner_id + '|' + r.activity_key + '|' + r.user_id; seen.add(k); if (inter.known && !inter.known.has(k) && r.owner_id === session.uid && r.user_id !== session.uid) fresh.push({ kind: 'flow', name: r.author_name }); }
+    for (const r of cm) { ((comments[r.owner_id] = comments[r.owner_id] || {})[r.activity_key] = (comments[r.owner_id] || {})[r.activity_key] || []).push({ id: r.id, u: r.user_id, name: r.author_name || '', body: r.body, at: Date.parse(r.created_at) || 0 }); const k = 'c|' + r.id; seen.add(k); if (inter.known && !inter.known.has(k) && r.owner_id === session.uid && r.user_id !== session.uid) fresh.push({ kind: 'comment', name: r.author_name }); }
+    inter.flows = flows; inter.comments = comments; inter.known = seen;
+    for (const f of fresh.slice(0, 3)) hooks.notify(f.kind, { name: f.name || '' });
+  }
+  const interactionsAvailable = () => !inter.off && !!session;
+  const activityStats = (ownerUid, aid) => {
+    const fl = ((inter.flows[ownerUid] || {})[aid]) || [], cm = ((inter.comments[ownerUid] || {})[aid]) || [];
+    return { flows: fl.length, flowed: !!session && fl.some((x) => x.u === session.uid), who: fl.map((x) => x.name).filter(Boolean), comments: cm };
+  };
+  const myName = () => String(S.state.settings.name || S.state.settings.handleName || '').slice(0, 40);
+  async function toggleFlow(ownerUid, aid) {
+    if (!session) return;
+    const owner = (inter.flows[ownerUid] = inter.flows[ownerUid] || {}), arr = (owner[aid] = owner[aid] || []), mine = arr.findIndex((x) => x.u === session.uid);
+    if (mine >= 0) { await rest('DELETE', 'activity_flows', `owner_id=eq.${ownerUid}&activity_key=eq.${aid}&user_id=eq.${session.uid}`); arr.splice(mine, 1); }
+    else { await rest('POST', 'activity_flows', 'on_conflict=owner_id,activity_key,user_id', { owner_id: ownerUid, activity_key: aid, user_id: session.uid, author_name: myName() }, 'resolution=ignore-duplicates'); arr.push({ u: session.uid, name: myName(), at: Date.now() }); }
+    if (inter.known) inter.known.add('f|' + ownerUid + '|' + aid + '|' + session.uid);
+    hooks.change();
+  }
+  async function addComment(ownerUid, aid, body) {
+    body = String(body || '').trim().slice(0, 600);
+    if (!session || !body) return null;
+    const rows = await rest('POST', 'activity_comments', '', { owner_id: ownerUid, activity_key: aid, user_id: session.uid, author_name: myName(), body }, 'return=representation');
+    const r = Array.isArray(rows) ? rows[0] : rows;
+    if (r) { const arr = ((inter.comments[ownerUid] = inter.comments[ownerUid] || {})[aid] = (inter.comments[ownerUid] || {})[aid] || []); arr.push({ id: r.id, u: session.uid, name: myName(), body, at: Date.parse(r.created_at) || Date.now() }); if (inter.known) inter.known.add('c|' + r.id); }
+    hooks.change();
+    return r;
+  }
+  async function deleteComment(ownerUid, aid, id) {
+    await rest('DELETE', 'activity_comments', `id=eq.${id}`);
+    const arr = ((inter.comments[ownerUid] || {})[aid]) || [], i = arr.findIndex((c) => c.id === id);
+    if (i >= 0) arr.splice(i, 1);
+    hooks.change();
   }
 
   /* ---------- Ações sobre pessoas ---------- */
@@ -402,7 +455,7 @@
   RF.remote = {
     configured, signedIn: () => !!(session && state.user), state, cache, RemoteError, explain,
     signUp, signIn, signOut, deleteAccount, diagnose, restore, pull, pushNow, schedulePush, follow, unfollow, removeFollower, respond,
-    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
+    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, interactionsAvailable, activityStats, toggleFlow, addComment, deleteComment, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
     setHooks: (h) => { hooks = { ...hooks, ...h }; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

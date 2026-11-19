@@ -4,6 +4,20 @@
   root.RF = root.RF || {};
   // k: new (novo) | imp (melhorado) | fix (corrigido). Cada item tem o texto nos 4 idiomas.
   const E = [
+    { v: '1.9.0', date: '2026-11', items: [
+      { k: 'fix', pt: 'Em «Começar a ler» já podes escolher qualquer livro, as vezes que quiseres (a lista ficava presa no primeiro).',
+        en: 'In «Start reading» you can now pick any book, as many times as you like (the list used to get stuck on the first one).',
+        ru: 'В «Начать чтение» теперь можно выбрать любую книгу сколько угодно раз (раньше список «залипал» на первой).',
+        de: 'Bei «Lesen beginnen» kannst du jetzt jedes Buch beliebig oft auswählen (die Liste blieb vorher beim ersten hängen).' },
+      { k: 'new', pt: 'Os perfis mostram também «Quero ler» (com a mesma privacidade das outras listas) e qualquer livro tem um «+» para o adicionares ao teu «Quero ler».',
+        en: 'Profiles now also show «Want to read» (with the same privacy as the other lists) and any book has a «+» to add it to your «Want to read».',
+        ru: 'В профилях теперь есть и «Хочу прочитать» (с той же приватностью, что и другие списки), а у любой книги есть «+», чтобы добавить её в твой список.',
+        de: 'Profile zeigen jetzt auch «Möchte ich lesen» (mit derselben Privatsphäre wie die anderen Listen), und jedes Buch hat ein «+», um es zu deinem «Möchte ich lesen» hinzuzufügen.' },
+      { k: 'new', pt: 'Flows e Críticas Elaboradíssimas em cada atividade: dá um Flow, deixa a tua crítica e recebe um aviso quando alguém reage às tuas leituras.',
+        en: 'Flows and Super-Elaborate Critiques on every activity: give a Flow, leave your critique and get a notice when someone reacts to your readings.',
+        ru: 'Flow и сверхподробные рецензии к каждой активности: ставь Flow, оставляй рецензию и получай уведомление, когда кто-то реагирует на твои чтения.',
+        de: 'Flows und hochelaborierte Kritiken zu jeder Aktivität: Gib einen Flow, hinterlasse deine Kritik und erhalte eine Meldung, wenn jemand auf deine Lesesitzungen reagiert.' }
+    ] },
     { v: '1.8.0', date: '2026-11', items: [
       { k: 'new', pt: 'A «Introdução Geral» de um livro lê-se completa: o texto já não é cortado e percorre-se com a roda do rato.',
         en: 'A book’s «General Introduction» now reads in full: the text is no longer cut off and scrolls with the mouse wheel.',
@@ -135,6 +149,6 @@
         de: 'Profil aus Sicht eines Followers mit Statistiken und Aktivität; 5 Vorschaubilder mit «Mehr ansehen».' }
     ] }
   ];
-  root.RF.changelog = { current: '1.8.0', entries: E };
+  root.RF.changelog = { current: '1.9.0', entries: E };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.RF.changelog;
 })(typeof window !== 'undefined' ? window : globalThis);

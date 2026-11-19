@@ -6,7 +6,7 @@
 
   const PRIVACY_KEYS = [
     ['reading', 'O que estou a ler'], ['finished', 'Livros que já li'], ['favorites', 'Livros favoritos'],
-    ['recommendations', 'As minhas recomendações'], ['bio', 'Descrição do perfil'], ['achievements', 'Conquistas'],
+    ['recommendations', 'As minhas recomendações'], ['wantToRead', 'Quero ler'], ['bio', 'Descrição do perfil'], ['achievements', 'Conquistas'],
     ['activity', 'Atividade de leitura'], ['activityNotes', 'Notas e fotos das leituras na atividade'], ['stats', 'Estatísticas (tempo e páginas)'], ['reviews', 'Introdução Geral e avaliações dos livros']
   ];
 
@@ -35,7 +35,7 @@
     opts = opts || {};
     return [...st.sessions].sort((a, b) => b.start - a.start).slice(0, limit || 1e9).map((s) => {
       const b = st.books.find((x) => x.id === s.bookId);
-      const o = { book: b ? b.title : '', minutes: Math.round(s.durationSeconds / 60), pages: L.pagesRead(s), when: s.start, unlocked: s.unlocked || [], manual: !!s.manual };
+      const o = { aid: s.id, book: b ? b.title : '', minutes: Math.round(s.durationSeconds / 60), pages: L.pagesRead(s), when: s.start, unlocked: s.unlocked || [], manual: !!s.manual };
       const note = (s.notes || '').trim();
       if (opts.details && note) o.note = note.slice(0, NOTE_MAX);
       if (opts.details && s.photoId && opts.keys && opts.keys.has('p-' + s.id)) o.pk = 'p-' + s.id;
@@ -54,6 +54,7 @@
     if (p.finished) out.sections.finished = books.filter((b) => b.status === 'finished').map(mk);
     if (p.favorites) out.sections.favorites = books.filter((b) => b.favorite).map(mk);
     if (p.recommendations) out.sections.recs = books.filter((b) => b.recommend).map(mk);
+    if (p.wantToRead !== false) out.sections.wantToRead = books.filter((b) => b.status === 'wantToRead').map(mk);
     if (p.stats) out.sections.stats = statsOf(st);
     if (p.achievements) out.sections.achievements = [...st.unlocked.keys()];
     if (p.activity) out.sections.activity = activityOf(st, 60, { details: p.activityNotes !== false, local: true });
@@ -81,12 +82,13 @@
     if (p.finished) out.finished = list((b) => b.status === 'finished');
     if (p.favorites) out.favorites = list((b) => b.favorite);
     if (p.recommendations) out.recommendations = list((b) => b.recommend);
+    if (p.wantToRead !== false) out.wantToRead = list((b) => b.status === 'wantToRead');
     if (p.achievements) out.achievements = [...st.unlocked.keys()];
     if (p.activity) out.activity = activityOf(st, 60, { details: p.activityNotes !== false, keys: coverKeys });
     if (p.stats) out.stats = statsOf(st);
     return out;
   }
-  const ALL_SECTIONS = ['bio', 'reading', 'finished', 'favorites', 'recommendations', 'achievements', 'activity', 'stats'];
+  const ALL_SECTIONS = ['bio', 'reading', 'finished', 'favorites', 'recommendations', 'wantToRead', 'achievements', 'activity', 'stats'];
 
   /** Converte as secções recebidas do servidor no formato do ecrã de perfil. `covers`: { ck: dataUrl } já descarregadas. */
   function fromServer(shared, covers) {
@@ -97,6 +99,7 @@
     if (shared.finished) sec.finished = mk(shared.finished);
     if (shared.favorites) sec.favorites = mk(shared.favorites);
     if (shared.recommendations) sec.recs = mk(shared.recommendations);
+    if (shared.wantToRead) sec.wantToRead = mk(shared.wantToRead);
     if (shared.stats) sec.stats = shared.stats;
     if (shared.achievements) sec.achievements = shared.achievements;
     if (shared.activity) sec.activity = shared.activity.map((a) => ({ ...a, photoData: (covers && a.pk && covers[a.pk]) || null }));
@@ -119,6 +122,6 @@
       .sort((a, b) => b.v - a.v || String(a.p.name).localeCompare(String(b.p.name)));
   }
 
-  RF.social = { PRIVACY_KEYS, ALL_SECTIONS, item, clean, parseId, hue, myPublicProfile, publicSections, fromServer, statsOf, ranking };
+  RF.social = { PRIVACY_KEYS, ALL_SECTIONS, item, clean, parseId, hue, myPublicProfile, publicSections, fromServer, statsOf, activityOf, ranking };
   if (typeof module !== 'undefined' && module.exports) module.exports = RF.social;
 })(typeof window !== 'undefined' ? window : globalThis);

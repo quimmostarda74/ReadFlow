@@ -4603,6 +4603,72 @@
 "Use the mouse wheel to read it all.",
 "Используй колёсико мыши, чтобы прочитать всё.",
 "Mit dem Mausrad kannst du alles lesen."
+],
+[
+"{name} deixou uma Crítica Elaboradíssima",
+"{name} left a Super-Elaborate Critique",
+"{name} оставил(а) сверхподробную рецензию",
+"{name} hat eine hochelaborierte Kritik hinterlassen"
+],
+[
+"{name} deu um Flow à tua leitura",
+"{name} gave your reading a Flow",
+"{name} поставил(а) Flow твоему чтению",
+"{name} hat deiner Lesesitzung einen Flow gegeben"
+],
+[
+"Ainda ninguém deixou uma Crítica Elaboradíssima.",
+"Nobody has left a Super-Elaborate Critique yet.",
+"Пока никто не оставил сверхподробную рецензию.",
+"Noch hat niemand eine hochelaborierte Kritik hinterlassen."
+],
+[
+"Alguém",
+"Someone",
+"Кто-то",
+"Jemand"
+],
+[
+"Críticas Elaboradíssimas",
+"Super-Elaborate Critiques",
+"Сверхподробные рецензии",
+"Hochelaborierte Kritiken"
+],
+[
+"Dar um Flow",
+"Give a Flow",
+"Поставить Flow",
+"Einen Flow geben"
+],
+[
+"Escreve a tua Crítica Elaboradíssima…",
+"Write your Super-Elaborate Critique…",
+"Напиши свою сверхподробную рецензию…",
+"Schreibe deine hochelaborierte Kritik…"
+],
+[
+"Flow",
+"Flow",
+"Flow",
+"Flow"
+],
+[
+"Já está na tua estante",
+"Already on your shelf",
+"Уже на твоей полке",
+"Schon in deinem Regal"
+],
+[
+"Publicar",
+"Post",
+"Опубликовать",
+"Veröffentlichen"
+],
+[
+"Ver livro",
+"View book",
+"Открыть книгу",
+"Buch ansehen"
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);
