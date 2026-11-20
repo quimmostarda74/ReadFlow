@@ -45,12 +45,22 @@ function openToken(uid, password, blob) {
 function createDrive(deps) {
   const { fetch, openExternal, tokenStore } = deps;
   const now = deps.now || Date.now, timeoutMs = deps.loopbackTimeoutMs || 180000;
-  let cfg = { clientId: '', clientSecret: '' }, uid = null, tok = null, email = '';
+  let cfg = { clientId: '', clientSecret: '', brokerUrl: '', brokerKey: '' }, uid = null, tok = null, email = '', authJwt = '', brokerDown = false;
   const ids = new Map();                                   // nome do ficheiro -> id no Drive
 
-  const configured = () => !!(cfg.clientId && cfg.clientSecret);
-  const status = () => ({ configured: configured(), connected: !!(uid && tok && tok.refresh), email });
-  function configure(c) { cfg = { clientId: String((c && c.clientId) || '').trim(), clientSecret: String((c && c.clientSecret) || '').trim() }; return status(); }
+  // Dois modos: «broker» (recomendado: o segredo do Google fica numa função do Supabase e a app só tem o ID) e «direct» (o segredo vem na app).
+  const brokerOn = () => !!(cfg.brokerUrl && cfg.brokerKey && !brokerDown);
+  const configured = () => !!(cfg.clientId && ((cfg.brokerUrl && cfg.brokerKey) || cfg.clientSecret));
+  const status = () => ({ configured: configured(), connected: !!(uid && tok && tok.refresh), email, mode: brokerOn() ? 'broker' : 'direct' });
+  function configure(c) {
+    c = c || {};
+    const url = String(c.brokerUrl || '').trim().replace(/\/+$/, '');
+    cfg = { clientId: String(c.clientId || '').trim(), clientSecret: String(c.clientSecret || '').trim(), brokerUrl: /^https:\/\//i.test(url) ? url : '', brokerKey: String(c.brokerKey || '').trim() };
+    brokerDown = false;
+    return status();
+  }
+  /** Sessão do ReadFlow (Supabase) que a função do servidor exige para falar com o Google em nome da pessoa. */
+  function setAuth(jwt) { authJwt = String(jwt || ''); return true; }
 
   async function setUser(u) {
     uid = u || null; tok = null; email = ''; ids.clear();
@@ -60,23 +70,48 @@ function createDrive(deps) {
     return status();
   }
 
-  async function tokenRequest(params) {
-    let res;
-    try { res = await fetch(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params).toString() }); }
-    catch (e) { throw new DriveError('network', e.message); }
+  async function readToken(res) {
     let data = {}; try { data = await res.json(); } catch (e) { data = {}; }
     if (!res.ok) {
-      const code = data.error === 'invalid_grant' ? 'auth' : data.error === 'invalid_client' ? 'bad_client' : 'token';
+      const code = data.error === 'invalid_grant' ? 'auth' : data.error === 'invalid_client' ? 'bad_client'
+        : (data.error === 'missing_auth' || data.error === 'invalid_session') ? 'broker_auth' : (data.error === 'rate_limited' || res.status === 429) ? 'rate'
+        : data.error === 'not_configured' ? 'broker_not_configured' : 'token';
       throw new DriveError(code, data.error_description || data.error || ('HTTP ' + res.status), res.status);
     }
     return data;
+  }
+  async function viaGoogle(action, p) {
+    const form = action === 'exchange'
+      ? { code: p.code, client_id: cfg.clientId, client_secret: cfg.clientSecret, code_verifier: p.code_verifier, redirect_uri: p.redirect_uri, grant_type: 'authorization_code' }
+      : { client_id: cfg.clientId, client_secret: cfg.clientSecret, refresh_token: p.refresh_token, grant_type: 'refresh_token' };
+    let res;
+    try { res = await fetch(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(form).toString() }); }
+    catch (e) { throw new DriveError('network', e.message); }
+    return readToken(res);
+  }
+  async function viaBroker(action, p) {
+    if (!authJwt) throw new DriveError('broker_auth', 'Sem sessão do ReadFlow');
+    let res;
+    try { res = await fetch(cfg.brokerUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: cfg.brokerKey, Authorization: 'Bearer ' + authJwt }, body: JSON.stringify({ action, ...p }) }); }
+    catch (e) { throw new DriveError('network', e.message); }
+    if (res.status === 404) throw new DriveError('broker_missing', 'A função google-token não existe no Supabase', 404);
+    return readToken(res);
+  }
+  /** Troca de código / renovação do acesso. O segredo do Google só existe no servidor (modo broker). */
+  async function tokenRequest(action, p) {
+    if (brokerOn()) {
+      try { return await viaBroker(action, p); }
+      catch (e) { if (e.code === 'broker_missing' && cfg.clientSecret) { brokerDown = true; return viaGoogle(action, p); } throw e; }   // transição: ainda sem a função, usa o modo antigo
+    }
+    if (!cfg.clientSecret) throw new DriveError('not_configured', 'Falta o segredo do Google ou a função do servidor');
+    return viaGoogle(action, p);
   }
 
   async function access(force) {
     if (!uid || !tok) throw new DriveError('not_connected');
     if (!force && tok.access && now() < tok.expires) return tok.access;
     try {
-      const d = await tokenRequest({ client_id: cfg.clientId, client_secret: cfg.clientSecret, refresh_token: tok.refresh, grant_type: 'refresh_token' });
+      const d = await tokenRequest('refresh', { refresh_token: tok.refresh });
       tok.access = d.access_token; tok.expires = now() + Math.max(60, (d.expires_in || 3600) - 60) * 1000;
       return tok.access;
     } catch (e) {
@@ -136,7 +171,7 @@ function createDrive(deps) {
       const url = AUTH_URL + '?' + new URLSearchParams({ client_id: cfg.clientId, redirect_uri: redirect, response_type: 'code', scope: SCOPE, code_challenge: challenge, code_challenge_method: 'S256', state, access_type: 'offline', prompt: 'consent' }).toString();
       await openExternal(url);
       const code = await srv.wait;
-      const d = await tokenRequest({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, code_verifier: verifier, redirect_uri: redirect, grant_type: 'authorization_code' });
+      const d = await tokenRequest('exchange', { code, code_verifier: verifier, redirect_uri: redirect });
       if (!d.refresh_token) throw new DriveError('no_refresh', 'O Google não devolveu a ligação permanente. Remove o acesso do ReadFlow na tua conta Google e tenta outra vez.');
       tok = { refresh: d.refresh_token, access: d.access_token, expires: now() + Math.max(60, (d.expires_in || 3600) - 60) * 1000 };
       email = '';
@@ -216,7 +251,7 @@ function createDrive(deps) {
     return status();
   }
 
-  return { configure, setUser, status, connect, disconnect, list, stat, read, write, remove, wipeAll, exportToken, importToken };
+  return { configure, setAuth, setUser, status, connect, disconnect, list, stat, read, write, remove, wipeAll, exportToken, importToken };
 }
 
 module.exports = { createDrive, DriveError, sealToken, openToken, SCOPE };

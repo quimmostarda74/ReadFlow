@@ -4,6 +4,16 @@
   root.RF = root.RF || {};
   // k: new (novo) | imp (melhorado) | fix (corrigido). Cada item tem o texto nos 4 idiomas.
   const E = [
+    { v: '1.10.0', date: '2026-11', items: [
+      { k: 'imp', pt: 'Segurança: o segredo do cliente do Google deixou de estar no programa e no GitHub. Fica guardado numa função privada no servidor, e a cópia na nuvem funciona exatamente como antes.',
+        en: 'Security: the Google client secret is no longer in the program or on GitHub. It is kept in a private function on the server, and the cloud copy works exactly as before.',
+        ru: 'Безопасность: секрет клиента Google больше не находится в программе и на GitHub. Он хранится в закрытой функции на сервере, а облачная копия работает так же, как раньше.',
+        de: 'Sicherheit: Das Google-Client-Geheimnis befindet sich nicht mehr im Programm und auf GitHub. Es liegt in einer privaten Funktion auf dem Server, und die Cloud-Kopie funktioniert genau wie vorher.' },
+      { k: 'imp', pt: 'Mensagens mais claras quando a ligação ao Google ou ao servidor precisa de atenção.',
+        en: 'Clearer messages when the connection to Google or to the server needs attention.',
+        ru: 'Более понятные сообщения, когда подключение к Google или серверу требует внимания.',
+        de: 'Klarere Meldungen, wenn die Verbindung zu Google oder zum Server Aufmerksamkeit braucht.' }
+    ] },
     { v: '1.9.0', date: '2026-11', items: [
       { k: 'fix', pt: 'Em «Começar a ler» já podes escolher qualquer livro, as vezes que quiseres (a lista ficava presa no primeiro).',
         en: 'In «Start reading» you can now pick any book, as many times as you like (the list used to get stuck on the first one).',
@@ -149,6 +159,6 @@
         de: 'Profil aus Sicht eines Followers mit Statistiken und Aktivität; 5 Vorschaubilder mit «Mehr ansehen».' }
     ] }
   ];
-  root.RF.changelog = { current: '1.9.0', entries: E };
+  root.RF.changelog = { current: '1.10.0', entries: E };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.RF.changelog;
 })(typeof window !== 'undefined' ? window : globalThis);

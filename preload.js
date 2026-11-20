@@ -8,7 +8,7 @@ const call = async (channel, ...args) => {
   return r && r.value;
 };
 const drive = {
-  configure: (cfg) => call('drive:configure', cfg), setUser: (uid) => call('drive:set-user', uid), status: () => call('drive:status'),
+  configure: (cfg) => call('drive:configure', cfg), setUser: (uid) => call('drive:set-user', uid), setAuth: (jwt) => call('drive:set-auth', jwt), status: () => call('drive:status'),
   connect: () => call('drive:connect'), disconnect: () => call('drive:disconnect'), list: () => call('drive:list'), stat: (name) => call('drive:stat', name),
   read: (name) => call('drive:read', name), write: (name, bytes, mime) => call('drive:write', name, bytes, mime), remove: (name) => call('drive:remove', name),
   wipe: () => call('drive:wipe'), vaultExport: (password) => call('drive:vault-export', password), vaultImport: (blob, password) => call('drive:vault-import', blob, password)

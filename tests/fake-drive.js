@@ -1,13 +1,13 @@
 // «Google Drive» falso para testar a sincronização: um disco na nuvem partilhado e a ligação deste «computador».
 function createFakeDrive() {
-  const f = { cloud: new Map(), n: 0, uid: null, connected: new Set(), email: 'leitor@gmail.com', down: false, failCode: null, hookStat: null, calls: [] };
+  const f = { cloud: new Map(), n: 0, uid: null, connected: new Set(), email: 'leitor@gmail.com', down: false, failCode: null, hookStat: null, calls: [], auth: '' };
   const coded = (code) => Object.assign(new Error(code), { code });
   const guard = (name) => { f.calls.push(name); if (f.down) throw coded('network'); if (f.failCode) { const c = f.failCode; f.failCode = null; throw coded(c); } };
   const status = () => ({ configured: true, connected: !!(f.uid && f.connected.has(f.uid)), email: f.connected.has(f.uid) ? f.email : '' });
   const need = () => { if (!status().connected) throw coded('not_connected'); };
   const time = () => new Date(1700000000000 + (++f.n) * 60000).toISOString();
   const api = {
-    configure: async () => status(), setUser: async (uid) => { f.uid = uid; return status(); }, status: async () => status(),
+    configure: async () => status(), setAuth: async (jwt) => { f.auth = jwt; return true; }, setUser: async (uid) => { f.uid = uid; return status(); }, status: async () => status(),
     connect: async () => { guard('connect'); f.connected.add(f.uid); return status(); },
     disconnect: async () => { f.connected.delete(f.uid); return status(); },
     list: async () => { guard('list'); need(); return [...f.cloud].map(([name, x]) => ({ id: 'id-' + name, name, modifiedTime: x.modifiedTime, size: String(x.bytes.length) })); },

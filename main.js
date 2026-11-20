@@ -69,6 +69,7 @@ const driveCall = (fn) => async (_event, ...args) => {
 };
 ipcMain.handle('drive:configure', driveCall((c) => drive.configure(c)));
 ipcMain.handle('drive:set-user', driveCall((uid) => drive.setUser(uid)));
+ipcMain.handle('drive:set-auth', driveCall((jwt) => drive.setAuth(jwt)));
 ipcMain.handle('drive:status', driveCall(() => drive.status()));
 ipcMain.handle('drive:connect', driveCall(() => drive.connect()));
 ipcMain.handle('drive:disconnect', driveCall(() => drive.disconnect()));

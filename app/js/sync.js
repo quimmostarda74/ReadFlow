@@ -68,12 +68,14 @@
   }
 
   /* ========== Estado e ligação ao Google ========== */
-  const state = { status: 'off', connected: false, email: '', lastSync: 0, error: '', progress: null, configured: false };
+  const state = { status: 'off', connected: false, email: '', lastSync: 0, error: '', progress: null, configured: false, mode: '' };
   let hooks = { change() {}, applied() {} }, uid = null, running = false, again = false, counter = 0, pushTimer = null, pollTimer = null, lastRemote = '', declined = false, progressModal = null;
   const D = () => (root.readflowApp && root.readflowApp.drive) || null;
   const supported = () => !!D();
   const cfg = () => RF.config || {};
-  const configured = () => !!(cfg().googleClientId && cfg().googleClientSecret);
+  // Basta o ID do Google + o Supabase configurado (o segredo fica numa função do servidor). O segredo no ficheiro continua a funcionar como alternativa.
+  const brokerUrl = () => cfg().googleBrokerUrl || (cfg().supabaseUrl ? String(cfg().supabaseUrl).replace(/\/+$/, '') + '/functions/v1/google-token' : '');
+  const configured = () => !!(cfg().googleClientId && (cfg().googleClientSecret || (brokerUrl() && cfg().supabaseKey)));
   const notify = () => { try { hooks.change(); } catch (e) { /* ecrã */ } };
   const setHooks = (h_) => { hooks = { ...hooks, ...h_ }; };
   function setStatus(status, error) { state.status = status; state.error = error || ''; notify(); }
@@ -81,16 +83,22 @@
   function explain(e) {
     const m = { network: 'Sem ligação à internet. A cópia continua quando voltares a ter rede.', auth: 'A ligação ao Google caiu. Liga o Google Drive outra vez.', not_connected: 'O Google Drive não está ligado.',
       api_disabled: 'A API do Google Drive não está ativada no projeto Google (ver o guia).', quota: 'O teu Google Drive está cheio.', rate: 'O Google pediu para abrandar. A app tenta mais tarde.',
-      bad_client: 'O ID ou o segredo do Google em config-google.js não estão certos.', denied: 'Não deste autorização no Google.', timeout: 'A autorização no Google demorou demasiado.',
+      bad_client: state.mode === 'broker' ? 'O ID do Google ou o segredo guardado no Supabase não estão certos (ver o guia).' : 'O ID ou o segredo do Google em config-google.js não estão certos.',
+      broker_missing: 'A função «google-token» ainda não está instalada no Supabase (ver o guia).', broker_not_configured: 'Faltam os segredos do Google na função «google-token» do Supabase (ver o guia).', broker_auth: 'A sessão do ReadFlow expirou. Entra outra vez na tua conta.', denied: 'Não deste autorização no Google.', timeout: 'A autorização no Google demorou demasiado.',
       no_refresh: 'O Google não deu a ligação permanente. Remove o ReadFlow em myaccount.google.com/permissions e tenta outra vez.', not_configured: 'O Google ainda não está configurado (ver o guia).', server: 'O Google está com problemas. Tenta mais tarde.' };
     return t(m[e && e.code] || 'Algo correu mal na cópia na nuvem. Tenta outra vez.');
   }
 
   async function prepare() {
     if (!supported()) return null;
-    await D().configure({ clientId: cfg().googleClientId || '', clientSecret: cfg().googleClientSecret || '' });
-    state.configured = configured();
+    const st = await D().configure({ clientId: cfg().googleClientId || '', clientSecret: cfg().googleClientSecret || '', brokerUrl: brokerUrl(), brokerKey: cfg().supabaseKey || '' });
+    state.configured = configured(); state.mode = (st && st.mode) || '';
     return D();
+  }
+  /** Entrega ao programa a sessão do ReadFlow (necessária para falar com a função do servidor). */
+  async function pushAuth() {
+    if (!D() || !RF.remote || !RF.remote.freshToken) return;
+    try { await D().setAuth((await RF.remote.freshToken()) || ''); } catch (e) { /* a ligação ao Google dirá se faltar */ }
   }
 
   /* ========== Sincronização ========== */
@@ -138,7 +146,7 @@
     running = true; clearTimeout(pushTimer);
     const first = !!opts.first;
     try {
-      setStatus('syncing');
+      setStatus('syncing'); await pushAuth();
       const drive = D();
       let files = await drive.list(), byName = new Map(files.map((f) => [f.name, f])), result = false;
       // Primeira vez nesta conta neste computador: pode ser preciso perguntar o que fazer com os dados que já cá estão.
@@ -208,7 +216,7 @@
   }
   async function poll() {
     if (!uid || !state.connected || running || !D()) return;
-    try { const m = await D().stat(DOC); if (m && m.modifiedTime !== lastRemote) await syncNow(); }
+    try { await pushAuth(); const m = await D().stat(DOC); if (m && m.modifiedTime !== lastRemote) await syncNow(); }
     catch (e) { if (e.code === 'network') setStatus('offline', explain(e)); }
   }
   function startTimers() { stopTimers(); pollTimer = setInterval(poll, 60000); if (root.addEventListener) root.addEventListener('focus', poll); }
@@ -220,6 +228,7 @@
     try {
       if (!(await prepare())) return;
       uid = newUid; declined = false;
+      await pushAuth();
       const st = await D().setUser(uid);
       state.connected = !!st.connected; state.email = st.email || ''; state.configured = st.configured;
       if (!state.connected && st.configured && password) {          // outro computador da mesma conta: a ligação ao Google vem do cofre
@@ -230,7 +239,7 @@
       if (state.connected) { startTimers(); await syncNow({ first: true }); }
     } catch (e) { setStatus('error', explain(e)); }
   }
-  function onSignOut() { stopTimers(); uid = null; state.connected = false; state.email = ''; state.status = 'off'; lastRemote = ''; if (D()) D().setUser(null).catch(() => {}); notify(); }
+  function onSignOut() { stopTimers(); uid = null; state.connected = false; state.email = ''; state.status = 'off'; lastRemote = ''; if (D()) { D().setUser(null).catch(() => {}); D().setAuth('').catch(() => {}); } notify(); }
 
   /** «Ligar ao Google Drive»: abre o browser; depois guarda a ligação cifrada no servidor (se der a palavra-passe) e sincroniza. */
   async function connect(password) {
@@ -238,6 +247,7 @@
       if (!(await prepare())) throw Object.assign(new Error('x'), { code: 'not_configured' });
       if (!state.configured) throw Object.assign(new Error('x'), { code: 'not_configured' });
       setStatus('syncing'); state.progress = { label: t('À espera da autorização no browser…'), done: 0, total: 0 }; notify();
+      await pushAuth();
       const st = await D().connect();
       state.connected = !!st.connected; state.email = st.email || '';
       state.progress = null;

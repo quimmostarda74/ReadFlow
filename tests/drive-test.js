@@ -6,7 +6,7 @@ const { createDrive, sealToken, openToken } = require('../app/main/drive.js');
 const b64url = (b) => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 function fakeGoogle() {
-  const g = { files: new Map(), codes: new Map(), refresh: new Map(), access: new Set(), revoked: [], log: [], n: 0, noRefresh: false, fail: null, netDown: false };
+  const g = { files: new Map(), codes: new Map(), refresh: new Map(), access: new Set(), revoked: [], log: [], n: 0, noRefresh: false, fail: null, netDown: false, brokerMissing: false, brokerCalls: [], directTokenCalls: 0 };
   const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body, arrayBuffer: async () => Buffer.from(JSON.stringify(body)) });
   const raw = (bytes) => ({ ok: true, status: 200, json: async () => ({}), arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) });
   g.expireAccess = () => g.access.clear();
@@ -14,7 +14,18 @@ function fakeGoogle() {
     if (g.netDown) throw new Error('ECONNRESET');
     init = init || {}; const u = new URL(url), method = (init.method || 'GET').toUpperCase();
     g.log.push(method + ' ' + u.pathname);
+    if (u.origin + u.pathname === 'https://proj.supabase.co/functions/v1/google-token') {          // a função do servidor (guarda o segredo)
+      g.brokerCalls.push(init);
+      if (g.brokerMissing) return json(404, { code: 'NOT_FOUND', message: 'Requested function was not found' });
+      const hd = init.headers || {};
+      if (hd.apikey !== 'sb_publishable_test' || hd.Authorization !== 'Bearer JWT1') return json(401, { error: 'invalid_session' });
+      const b = JSON.parse(init.body);
+      if ('client_secret' in b) return json(400, { error: 'a app nunca deve enviar o segredo' });
+      const form = b.action === 'exchange' ? { code: b.code, code_verifier: b.code_verifier, redirect_uri: b.redirect_uri, grant_type: 'authorization_code', client_id: 'CID', client_secret: 'SEC' } : { refresh_token: b.refresh_token, grant_type: 'refresh_token', client_id: 'CID', client_secret: 'SEC' };
+      return g.fetch('https://oauth2.googleapis.com/token', { method: 'POST', body: new URLSearchParams(form).toString(), __broker: true });
+    }
     if (u.origin + u.pathname === 'https://oauth2.googleapis.com/token') {
+      if (!init.__broker) g.directTokenCalls++;
       const p = new URLSearchParams(init.body);
       if (p.get('client_id') !== 'CID' || p.get('client_secret') !== 'SEC') return json(401, { error: 'invalid_client' });
       if (p.get('grant_type') === 'authorization_code') {
@@ -171,6 +182,23 @@ async function run(ok) {
   const n = await dw.wipeAll(); must(n > 1000 && (await dw.list()).length === 0, 'apagar tudo: ' + n);
   const r0 = g.revoked.length; await dw.disconnect(); must(g.revoked.length === r0 + 1 && !store.m.has('u7'), 'desligar revoga no Google e apaga o token local');
   ok('Google: «apagar cópia» remove tudo da pasta da app e desligar revoga o acesso');
+
+  // ===== modo «broker»: o segredo do Google fica no servidor e a app só tem o ID =====
+  const BROKER = { clientId: 'CID', brokerUrl: 'https://proj.supabase.co/functions/v1/google-token', brokerKey: 'sb_publishable_test' };
+  const mkb = (cfg2, store2) => { const x = createDrive({ fetch: g.fetch, openExternal: fakeBrowser(g), tokenStore: store2 || memStore(), loopbackTimeoutMs: 4000 }); x.configure(cfg2); return x; };
+  const cs = mkb({ clientId: 'CID' }); must(!cs.status().configured, 'só o ID não chega'); must(mkb({ clientId: 'CID', clientSecret: 'SEC' }).status().configured && mkb(BROKER).status().configured && mkb(BROKER).status().mode === 'broker', 'configurado com segredo ou com a função');
+  must(!mkb({ clientId: 'CID', brokerUrl: 'http://proj.supabase.co/functions/v1/google-token', brokerKey: 'k' }).status().configured, 'a função só é usada por https');
+  const bs = memStore(), b1 = mkb(BROKER, bs); await b1.setUser('ub');
+  await rejects(() => b1.connect(), 'broker_auth', 'sem sessão do ReadFlow'); b1.setAuth('JWT-ERRADO'); await rejects(() => b1.connect(), 'broker_auth', 'sessão do ReadFlow inválida');
+  b1.setAuth('JWT1'); g.directTokenCalls = 0; g.brokerCalls.length = 0;
+  const sb1 = await b1.connect(); must(sb1.connected && sb1.mode === 'broker', 'ligar pelo servidor: ' + JSON.stringify(sb1));
+  must(g.directTokenCalls === 0 && g.brokerCalls.length >= 1, 'a app não fala com o endereço de tokens do Google: passa pela função');
+  must(g.brokerCalls.every((c) => !String(c.body).includes('SEC') && !String(c.body).includes('client_secret')) && !JSON.stringify(b1).includes('SEC'), 'o segredo nunca está na app nem nos pedidos dela');
+  await b1.write('img-b', bin, 'image/jpeg'); g.expireAccess(); must(Buffer.compare(await b1.read('img-b'), bin) === 0, 'ler depois de expirar'); must(g.brokerCalls.some((c) => JSON.parse(c.body).action === 'refresh') && g.directTokenCalls === 0, 'a renovação do acesso também passa pela função');
+  g.refresh.clear(); g.expireAccess(); await rejects(() => b1.list(), 'auth', 'acesso revogado pelo servidor'); must(!b1.status().connected, 'revogado fica desligado');
+  g.brokerMissing = true; const b2 = mkb(BROKER); await b2.setUser('uc'); b2.setAuth('JWT1'); await rejects(() => b2.connect(), 'broker_missing', 'função por instalar');
+  const b3 = mkb({ ...BROKER, clientSecret: 'SEC' }); await b3.setUser('ud'); b3.setAuth('JWT1'); must((await b3.connect()).connected && b3.status().mode === 'direct', 'sem a função mas com o segredo antigo: continua a funcionar (transição)'); g.brokerMissing = false;
+  ok('Google: modo «broker»: o segredo fica no servidor (a app só envia o código e a sessão do ReadFlow), renovação, sessão inválida, função por instalar e transição para quem ainda tem o segredo');
 
   const s1 = sealToken('x', 'a', { r: 'tok' }), s2 = sealToken('x', 'a', { r: 'tok' }); must(s1 !== s2 && openToken('x', 'a', s1).r === 'tok', 'cifra com IV aleatório');
 }

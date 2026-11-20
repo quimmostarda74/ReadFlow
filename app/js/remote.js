@@ -124,6 +124,13 @@
     if (root.RF.sync) root.RF.sync.onSignIn(session.uid, null);
   }
 
+  /** Token da sessão do ReadFlow, renovado se estiver quase a expirar (a função do servidor do Google exige-o). */
+  async function freshToken() {
+    if (!session) return null;
+    if (session.expires_at - Date.now() / 1000 < 120) { try { await refresh(); } catch (e) { return null; } }
+    return session ? session.access_token : null;
+  }
+
   /* ---------- Cofre da ligação ao Google (cifrada no computador; o servidor só guarda texto ilegível) ---------- */
   let vaultOff = false;
   async function verifyPassword(password) {
@@ -455,7 +462,7 @@
   RF.remote = {
     configured, signedIn: () => !!(session && state.user), state, cache, RemoteError, explain,
     signUp, signIn, signOut, deleteAccount, diagnose, restore, pull, pushNow, schedulePush, follow, unfollow, removeFollower, respond,
-    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, interactionsAvailable, activityStats, toggleFlow, addComment, deleteComment, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
+    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, freshToken, interactionsAvailable, activityStats, toggleFlow, addComment, deleteComment, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
     setHooks: (h) => { hooks = { ...hooks, ...h }; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

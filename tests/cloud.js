@@ -20,6 +20,15 @@ async function run(c) {
   RF.config.googleClientId = 'cid'; RF.config.googleClientSecret = 'sec';
   await Y.onSignIn(uid, 'segredo123'); RF.app.go('profile'); must(/Ligar ao Google Drive/.test(text(roots[0])) && !Y.state.connected, 'por ligar');
   ok('cartão «Cópia na nuvem»: versão sem instalador, sem configuração do Google e por ligar');
+  // configuração: basta o ID do Google + o Supabase (o segredo fica numa função do servidor); o segredo no ficheiro continua a funcionar
+  RF.config.googleClientSecret = ''; const sbk = RF.config.supabaseKey;
+  must(Y.configured(), 'só com o ID e o Supabase configurado');
+  RF.config.supabaseKey = ''; must(!Y.configured(), 'sem o Supabase e sem segredo não há como trocar os tokens'); RF.config.supabaseKey = sbk;
+  RF.config.googleBrokerUrl = 'https://outro.exemplo/fn'; must(Y.configured(), 'endereço da função à medida'); delete RF.config.googleBrokerUrl;
+  await Y.onSignIn(uid, 'segredo123'); const tokenNow = await R.freshToken();
+  must(tokenNow && fake.auth === tokenNow, 'a sessão do ReadFlow é entregue ao programa para falar com a função do servidor');
+  RF.config.googleClientSecret = 'sec';   // o resto dos testes usa o modo antigo (com segredo)
+  ok('configuração do Google sem segredo na app: ID + Supabase chegam, e a sessão do ReadFlow segue para o programa');
 
   // ---------- 1. computador A: dados e primeira ligação
   await S.wipe(); roots[1].children = [];
@@ -89,6 +98,7 @@ async function run(c) {
   must(Y.state.status === 'offline' && /Sem ligação/.test(Y.state.error) && S.state.books.some((b) => b.notes === 'sem rede'), 'sem rede: avisa e mantém os dados'); fake.down = false;
   await Y.syncNow(); must(Y.state.status === 'idle' && cloudDoc().books.find((b) => b.title === 'Livro D').notes === 'sem rede', 'volta a rede: sincroniza');
   fake.failCode = 'api_disabled'; await Y.syncNow(); must(Y.state.status === 'error' && /API do Google Drive/.test(Y.state.error), 'API desligada: explica'); 
+  for (const [code, re] of [['broker_auth', /sessão do ReadFlow expirou/], ['broker_missing', /google-token.*instalada/], ['broker_not_configured', /segredos do Google/]]) { fake.failCode = code; await Y.syncNow(); must(Y.state.status === 'error' && re.test(Y.state.error), 'mensagem para ' + code + ': ' + Y.state.error); }
   fake.failCode = 'auth'; await Y.syncNow(); must(!Y.state.connected && /ligação ao Google caiu/.test(Y.state.error), 'ligação caída'); RF.app.go('profile'); must(/Ligar ao Google Drive/.test(text(roots[0])), 'cartão volta a pedir para ligar');
   ok('escrita simultânea, falta de rede, API desligada e ligação caída: nada se perde e a mensagem é clara');
   await Y.connect(null);

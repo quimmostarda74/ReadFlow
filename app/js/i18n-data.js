@@ -4669,6 +4669,30 @@
 "View book",
 "Открыть книгу",
 "Buch ansehen"
+],
+[
+"O ID do Google ou o segredo guardado no Supabase não estão certos (ver o guia).",
+"The Google ID or the secret stored in Supabase is not correct (see the guide).",
+"ID Google или секрет, сохранённый в Supabase, неверны (см. руководство).",
+"Die Google-ID oder das in Supabase gespeicherte Geheimnis stimmt nicht (siehe Anleitung)."
+],
+[
+"A função «google-token» ainda não está instalada no Supabase (ver o guia).",
+"The «google-token» function is not installed in Supabase yet (see the guide).",
+"Функция «google-token» ещё не установлена в Supabase (см. руководство).",
+"Die Funktion «google-token» ist in Supabase noch nicht installiert (siehe Anleitung)."
+],
+[
+"Faltam os segredos do Google na função «google-token» do Supabase (ver o guia).",
+"The Google secrets are missing from the «google-token» function in Supabase (see the guide).",
+"В функции «google-token» в Supabase не хватает секретов Google (см. руководство).",
+"In der Funktion «google-token» in Supabase fehlen die Google-Geheimnisse (siehe Anleitung)."
+],
+[
+"A sessão do ReadFlow expirou. Entra outra vez na tua conta.",
+"Your ReadFlow session has expired. Sign in to your account again.",
+"Сессия ReadFlow истекла. Войди в аккаунт снова.",
+"Deine ReadFlow-Sitzung ist abgelaufen. Melde dich erneut in deinem Konto an."
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

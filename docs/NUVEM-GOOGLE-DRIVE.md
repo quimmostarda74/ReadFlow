@@ -49,7 +49,8 @@ Botões do cartão: **Sincronizar agora**, **Desligar** (deixa de sincronizar, o
 - **Notas privadas continuam privadas.** As notas das leituras e as fotos só existem no computador e no Drive da própria pessoa.
 - **Ligação ao Google no computador.** Fica guardada cifrada pelo Windows (DPAPI), uma por conta do ReadFlow.
 - **Cofre.** Para entrar noutro computador sem repetir o passo do Google, a ligação é cifrada no computador (AES-256-GCM, chave derivada da palavra-passe do ReadFlow com PBKDF2, 200 000 iterações) antes de ir para o Supabase. Quem administra o Supabase **não consegue ler**; só abre com a palavra-passe da pessoa. Sem recuperação de palavra-passe, perder a palavra-passe significa voltar a ligar o Google.
-- **Autorização segura.** Usa PKCE e um endereço local temporário (127.0.0.1) que só serve para receber a resposta da Google. O ID e o segredo do cliente em `config-google.js` são, para apps de computador, considerados públicos pela Google; sem a autorização da pessoa não dão acesso a nada.
+- **Autorização segura.** Usa PKCE e um endereço local temporário (127.0.0.1) que só serve para receber a resposta da Google.
+- **O segredo do cliente do Google não está no programa (desde a 1.10).** Fica na função `google-token` do teu Supabase (Parte E). O programa só tem o **ID do cliente**, que é público por natureza (aparece no endereço de autorização que o browser abre). A função só atende utilizadores do ReadFlow com sessão válida, só troca códigos e renova acessos, só aceita o endereço local da app como destino, limita 30 pedidos por minuto por pessoa e não regista tokens. Em contrapartida, os códigos e tokens passam pela tua função (tu controlas o código e o Supabase). Quem tinha o segredo antigo nunca conseguiu, só com ele, aceder aos dados de ninguém sem a autorização dessa pessoa; o risco era alguém fazer-se passar pela app, e é esse que a Parte E fecha.
 - Se a pessoa retirar o acesso em myaccount.google.com/permissions, o ReadFlow deteta, apaga o token local e pede para ligar de novo.
 
 ## Configuração (uma vez, por ti)
@@ -61,11 +62,21 @@ Botões do cartão: **Sincronizar agora**, **Desligar** (deixa de sincronizar, o
 4. **Publicar a aplicação** (Audience > Publish app, estado **Em produção**). Isto é importante: em modo de teste a Google faz expirar a ligação ao fim de 7 dias. Como o âmbito é não sensível, não é exigida a verificação demorada.
 5. **Credenciais > Criar credenciais > ID de cliente OAuth** > tipo **Aplicação para computador**. Copia o **ID do cliente** e o **Segredo do cliente**.
 
-**Parte B: config-google.js.** Abre `app\js\config-google.js` e cola os dois valores entre as aspas. É um ficheiro à parte, por isso o `config.js` do Supabase não é tocado. Nas próximas atualizações este ficheiro não vem no pacote, para não perderes os valores.
+**Parte B: config-google.js.** Abre `app\js\config-google.js` e cola o **ID do cliente** entre as aspas. O segredo **não** vai para este ficheiro: deixa `googleClientSecret: ''` e segue a Parte E (a Parte E também diz como o tirar de quem já o tinha). É um ficheiro à parte, por isso o `config.js` do Supabase não é tocado. Nas próximas atualizações este ficheiro não vem no pacote, para não perderes o ID.
 
 **Parte C: Supabase (opcional, 1 minuto).** No SQL Editor corre `docs\supabase-update-1.7.0.sql`. Cria o cofre. Se não o fizeres, tudo funciona, mas o Google tem de ser ligado uma vez em cada computador.
 
 **Parte D: publicar.** Copia os ficheiros do pacote para o projeto, muda em `package.json` só a linha `"version"` para `1.7.0`, faz Commit e Push e cria a release `v1.7.0`.
+
+**Parte E: o segredo do Google no servidor (a partir da 1.10, 15 minutos).**
+1. **Google Cloud > Credenciais > o teu cliente OAuth:** carrega em **Adicionar segredo** e copia o **segredo novo**. Deixa o antigo ativo por agora: o segredo antigo esteve no GitHub, por isso vai ser desativado no passo 6.
+2. **Supabase > Edge Functions > Deploy a new function > Via Editor.** Nome exatamente `google-token`. Apaga o código de exemplo, cola o conteúdo de `supabase\functions\google-token\index.ts` e carrega em **Deploy**. Se aparecer a opção **Verify JWT** (ou «Enforce JWT»), deixa-a **desligada**: a função verifica a sessão do ReadFlow por dentro.
+3. **Supabase > Edge Functions > Secrets:** cria `GOOGLE_CLIENT_ID` (o ID do cliente) e `GOOGLE_CLIENT_SECRET` (o segredo **novo** do passo 1). Não é preciso voltar a fazer deploy.
+4. Publica a **1.10.0** (copia o pacote, muda a linha `"version"`, Commit, Push, release) e, em `app\js\config-google.js`, deixa **`googleClientSecret: ''`**. Faz Commit e Push também deste ficheiro.
+5. **Testa:** abre a app, Perfil > Cópia na nuvem > **Desligar** e depois **Ligar ao Google Drive**. Se ligar e sincronizar, está a passar pela função.
+6. **Passados alguns dias** (quando os amigos já tiverem atualizado, o que as atualizações automáticas fazem ao abrir a app), volta ao Google Cloud e **desativa/apaga o segredo antigo**. Quem ainda estiver numa versão antiga deixa de conseguir ligar até atualizar.
+
+Durante a transição não se perde nada: a 1.10 tenta primeiro a função e, se ela ainda não existir e o segredo continuar no ficheiro, usa o modo antigo. As ligações já feitas continuam a funcionar com o segredo novo.
 
 ## Limites e cuidados
 
@@ -88,8 +99,12 @@ Botões do cartão: **Sincronizar agora**, **Desligar** (deixa de sincronizar, o
 | A ligação cai ao fim de uma semana | A app ficou em modo de teste: Parte A, passo 4. |
 | «O Google não deu a ligação permanente» | Remover o ReadFlow em myaccount.google.com/permissions e ligar de novo. |
 | Noutro computador pede para ligar o Google | O cofre não está ativo (Parte C) ou a palavra-passe foi diferente. |
+| «A função google-token ainda não está instalada» | Parte E, passo 2 (o nome tem de ser exatamente `google-token`). |
+| «Faltam os segredos do Google na função» | Parte E, passo 3 (`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`). |
+| «O ID do Google ou o segredo guardado no Supabase não estão certos» | Confirma que o segredo do Supabase é o do mesmo cliente OAuth que o ID da app, sem espaços. |
+| «A sessão do ReadFlow expirou» | Sair e entrar outra vez na conta em Amigos. |
 | Aparece a pergunta «Dados neste computador» | O computador tinha dados que não eram desta conta: escolhe Juntar, Usar só os da nuvem ou Agora não. |
 
 ## O que foi testado
 
-A fusão entre computadores, as imagens, os erros, o cofre cifrado, o processo de autorização (PKCE e servidor local) e os ecrãs foram testados com um Google e um Supabase simulados, nos quatro idiomas. Não foi possível testar com o Google real a partir daqui: **a primeira ligação a sério é o teste final**. Se algo falhar, copia a mensagem que aparece no cartão da nuvem.
+O código real da função `google-token` foi testado com um Supabase e um Google falsos (sessão inválida, endereços de destino maliciosos, limite de pedidos, o segredo nunca devolvido), tal como o modo em que a app a usa e a transição para quem ainda tem o segredo no ficheiro. A fusão entre computadores, as imagens, os erros, o cofre cifrado, o processo de autorização (PKCE e servidor local) e os ecrãs foram testados com um Google e um Supabase simulados, nos quatro idiomas. Não foi possível testar com o Google real a partir daqui: **a primeira ligação a sério é o teste final**. Se algo falhar, copia a mensagem que aparece no cartão da nuvem.
