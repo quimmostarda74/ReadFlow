@@ -55,3 +55,7 @@ Os dados de cada pessoa (livros, leituras, estantes, imagens) não passam pelo s
 - **Quero ler** é mais uma secção do perfil, com a mesma privacidade das outras listas (Amigos > Privacidade > «Quero ler»). Em qualquer livro de um perfil há um «+» para o adicionares ao teu «Quero ler».
 - **Flows** (gostos) e **Críticas Elaboradíssimas** (comentários, até 600 caracteres) aplicam-se a cada atividade de leitura. Só o dono e os seguidores aprovados que podem ver a atividade reagem e leem. O dono pode apagar qualquer crítica à sua atividade; cada pessoa apaga as suas. Quem reage à tua atividade gera um aviso.
 - Tabelas `activity_flows` e `activity_comments`, com limites por hora. Correr `docs/supabase-update-1.9.0.sql`; sem isso a app funciona na mesma, só sem estas funções.
+
+## Se os Flows e as Críticas não funcionam (1.11)
+É quase sempre o SQL por correr no Supabase. Em **Amigos > Testar o servidor** a app diz o que falta. Corre `docs/supabase-update-1.11.0.sql` (SQL Editor) e carrega outra vez em «Testar o servidor». O ficheiro é seguro de repetir e termina com um pedido para o servidor reconhecer logo as tabelas novas.
+As atividades identificam-se pela hora de início da leitura, por isso as reações funcionam também em atividades de quem ainda não atualizou a app.

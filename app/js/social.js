@@ -35,7 +35,7 @@
     opts = opts || {};
     return [...st.sessions].sort((a, b) => b.start - a.start).slice(0, limit || 1e9).map((s) => {
       const b = st.books.find((x) => x.id === s.bookId);
-      const o = { aid: s.id, book: b ? b.title : '', minutes: Math.round(s.durationSeconds / 60), pages: L.pagesRead(s), when: s.start, unlocked: s.unlocked || [], manual: !!s.manual };
+      const o = { book: b ? b.title : '', minutes: Math.round(s.durationSeconds / 60), pages: L.pagesRead(s), when: s.start, unlocked: s.unlocked || [], manual: !!s.manual };
       const note = (s.notes || '').trim();
       if (opts.details && note) o.note = note.slice(0, NOTE_MAX);
       if (opts.details && s.photoId && opts.keys && opts.keys.has('p-' + s.id)) o.pk = 'p-' + s.id;

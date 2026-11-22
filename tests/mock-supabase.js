@@ -6,7 +6,7 @@ const uuid = () => crypto.randomUUID();
 function createMock(opts = {}) {
   const key = opts.key || 'test-key';
   const db = { users: new Map(), tokens: new Map(), refresh: new Map(), profiles: new Map(), follows: [], shared: new Map(), covers: new Map(), vault: new Map(), flows: [], comments: [] };
-  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false, noVault: false, noWant: false, noInter: false };
+  const flags = { confirmEmails: !!opts.confirmEmails, down: false, invite: opts.invite || '', noCovers: false, noVault: false, noWant: false, noInter: false, interError: false };
   const log = [];
 
   const res = (status, body) => ({ ok: status >= 200 && status < 300, status, text: async () => (body === undefined || body === null ? '' : JSON.stringify(body)) });
@@ -158,6 +158,7 @@ function createMock(opts = {}) {
     }
     if (path === '/rest/v1/activity_flows' || path === '/rest/v1/activity_comments') {
       if (flags.noInter) return err(404, 'PGRST205', 'Could not find the table in the schema cache');
+      if (flags.interError) { flags.interError = false; return err(500, 'XX000', 'falha passageira'); }
       const isFlow = path.endsWith('flows'), table = isFlow ? db.flows : db.comments;
       const sees = (r) => r.user_id === me || r.owner_id === me || canView(me, r.owner_id, 'activity');   // RLS (select)
       if (method === 'GET') {

@@ -4,6 +4,24 @@
   root.RF = root.RF || {};
   // k: new (novo) | imp (melhorado) | fix (corrigido). Cada item tem o texto nos 4 idiomas.
   const E = [
+    { v: '1.11.0', date: '2026-11', items: [
+      { k: 'fix', pt: 'Flows e Críticas Elaboradíssimas: os botões aparecem sempre em cada atividade. Se o servidor ainda não estiver pronto, a app diz o que falta; não desaparecem em silêncio e recuperam sozinhos.',
+        en: 'Flows and Super-Elaborate Critiques: the buttons now always show on every activity. If the server is not ready yet, the app tells you what is missing; they no longer vanish silently and recover on their own.',
+        ru: 'Flow и сверхподробные рецензии: кнопки теперь всегда есть у каждой активности. Если сервер ещё не готов, приложение скажет, чего не хватает; они не пропадают молча и восстанавливаются сами.',
+        de: 'Flows und hochelaborierte Kritiken: Die Schaltflächen erscheinen jetzt immer bei jeder Aktivität. Ist der Server noch nicht bereit, sagt die App, was fehlt; sie verschwinden nicht mehr stillschweigend und erholen sich von selbst.' },
+      { k: 'fix', pt: 'Os Flows e as Críticas funcionam também em atividades de amigos que ainda não atualizaram a app.',
+        en: 'Flows and Critiques also work on activities from friends who have not updated the app yet.',
+        ru: 'Flow и рецензии работают и для активностей друзей, которые ещё не обновили приложение.',
+        de: 'Flows und Kritiken funktionieren auch bei Aktivitäten von Freunden, die die App noch nicht aktualisiert haben.' },
+      { k: 'new', pt: 'Em Amigos há agora «Testar o servidor», que diz que funcionalidades faltam ativar e que ficheiro SQL correr.',
+        en: 'Friends now has «Test the server», which tells you which features still need enabling and which SQL file to run.',
+        ru: 'В «Друзьях» появилась кнопка «Проверить сервер»: она показывает, какие функции нужно включить и какой SQL-файл запустить.',
+        de: 'Unter Freunde gibt es jetzt «Server testen»: Es zeigt, welche Funktionen noch aktiviert werden müssen und welche SQL-Datei auszuführen ist.' },
+      { k: 'new', pt: 'Página inicial: botão «GitHub ReadFlow» no canto superior direito, que abre o repositório do projeto.',
+        en: 'Home page: a «GitHub ReadFlow» button in the top-right corner that opens the project repository.',
+        ru: 'Главная страница: кнопка «GitHub ReadFlow» в правом верхнем углу открывает репозиторий проекта.',
+        de: 'Startseite: Eine Schaltfläche «GitHub ReadFlow» oben rechts öffnet das Projekt-Repository.' }
+    ] },
     { v: '1.10.0', date: '2026-11', items: [
       { k: 'imp', pt: 'Segurança: o segredo do cliente do Google deixou de estar no programa e no GitHub. Fica guardado numa função privada no servidor, e a cópia na nuvem funciona exatamente como antes.',
         en: 'Security: the Google client secret is no longer in the program or on GitHub. It is kept in a private function on the server, and the cloud copy works exactly as before.',
@@ -159,6 +177,6 @@
         de: 'Profil aus Sicht eines Followers mit Statistiken und Aktivität; 5 Vorschaubilder mit «Mehr ansehen».' }
     ] }
   ];
-  root.RF.changelog = { current: '1.10.0', entries: E };
+  root.RF.changelog = { current: '1.11.0', entries: E };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.RF.changelog;
 })(typeof window !== 'undefined' ? window : globalThis);

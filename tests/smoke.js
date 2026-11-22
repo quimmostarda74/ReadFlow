@@ -586,7 +586,8 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   thumbOf('Quero Direto').listeners.click[0](); await sleep(100); must9(/Já está na tua estante/.test(text(roots[1])), 'ficha de um livro que já tenho'); roots[1].children = [];
   walk(thumbOf('Quero 1')).find((n) => cls1(n, 'add-badge')).listeners.click[0]({ stopPropagation() {} }); await sleep(60);
   must9(walk(roots[1]).some((n) => n.tagName === 'INPUT' && n.attrs.placeholder === 'Título' && n.value === 'Quero 1'), 'sem páginas: abre o formulário já preenchido'); roots[1].children = [];
-  M.db.shared.set(`${mariaId}|activity`, { user_id: mariaId, section: 'activity', payload: [{ aid: 'act-1', book: 'Rd 0', minutes: 30, pages: 20, when: Date.now() - 1000, unlocked: [], note: 'Nota da Maria' }, { aid: 'act-2', book: 'Livro Fora', minutes: 5, pages: 3, when: Date.now() - 5000, unlocked: [] }] });
+  const W1 = Date.now() - 1000, W2 = Date.now() - 5000;     // atividades de uma versão antiga: sem identificador, só com a hora
+  M.db.shared.set(`${mariaId}|activity`, { user_id: mariaId, section: 'activity', payload: [{ book: 'Rd 0', minutes: 30, pages: 20, when: W1, unlocked: [], note: 'Nota da Maria' }, { book: 'Livro Fora', minutes: 5, pages: 3, when: W2, unlocked: [] }] });
   await R.pull(true); RF.app.go('home'); await sleep(40);
   const verLivro = walk(roots[0]).filter((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Ver livro'); must9(verLivro.length >= 2, 'botão «Ver livro» nas atividades');
   verLivro[1].listeners.click[0](); await sleep(100); must9(/Livro Fora/.test(text(roots[1])) && walk(roots[1]).some((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Quero ler'), 'livro só com o título abre a ficha com «Quero ler»'); roots[1].children = [];
@@ -595,7 +596,7 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   const flowBtn = () => walk(roots[0]).find((n) => n.tagName === 'BUTTON' && cls1(n, 'flow-btn')), critBtn = () => walk(roots[0]).find((n) => n.tagName === 'BUTTON' && /^Críticas Elaboradíssimas/.test(text(n).trim()));
   must9(flowBtn() && critBtn(), 'Flow e Críticas Elaboradíssimas em cada atividade');
   flowBtn().listeners.click[0]({ stopPropagation() {} }); await sleep(150);
-  must9(M.db.flows.length === 1 && M.db.flows[0].activity_key === 'act-1' && M.db.flows[0].user_id === meId && M.db.flows[0].author_name, 'dar um Flow'); must9(cls1(flowBtn(), 'on') && /Flow · 1/.test(text(flowBtn())), 'o botão mostra o Flow e a contagem');
+  must9(M.db.flows.length === 1 && M.db.flows[0].activity_key === 'w' + W1 && M.db.flows[0].user_id === meId && M.db.flows[0].author_name, 'dar um Flow'); must9(cls1(flowBtn(), 'on') && /Flow · 1/.test(text(flowBtn())), 'o botão mostra o Flow e a contagem');
   flowBtn().listeners.click[0]({ stopPropagation() {} }); await sleep(150); must9(M.db.flows.length === 0 && !cls1(flowBtn(), 'on'), 'tirar o Flow');
   critBtn().listeners.click[0](); await sleep(40);
   const ta = walk(roots[0]).find((n) => n.tagName === 'TEXTAREA' && n.attrs.placeholder === 'Escreve a tua Crítica Elaboradíssima…'); must9(ta, 'campo da crítica');
@@ -604,16 +605,55 @@ const walk = (n, out = []) => { if (n && n.nodeType === 1) { out.push(n); n.chil
   walk(roots[0]).find((n) => n.tagName === 'BUTTON' && (n.attrs || {}).title === 'Apagar' && cls1(n, 'icon-btn')).listeners.click[0](); await sleep(150); must9(M.db.comments.length === 0, 'apagar a minha crítica');
   critBtn().listeners.click[0](); await sleep(20);
   const realToast = RF.ui.toastAchievements, toasts = []; RF.ui.toastAchievements = (a) => toasts.push(...a.map((x) => x.name));
-  M.db.flows.push({ owner_id: meId, activity_key: sessN.id, user_id: mariaId, author_name: 'Maria', created_at: new Date().toISOString() });
-  M.db.comments.push({ id: 'cm-in', owner_id: meId, activity_key: sessN.id, user_id: mariaId, author_name: 'Maria', body: 'Crítica da Maria', created_at: new Date().toISOString() });
+  M.db.flows.push({ owner_id: meId, activity_key: 'w' + sessN.start, user_id: mariaId, author_name: 'Maria', created_at: new Date().toISOString() });
+  M.db.comments.push({ id: 'cm-in', owner_id: meId, activity_key: 'w' + sessN.start, user_id: mariaId, author_name: 'Maria', body: 'Crítica da Maria', created_at: new Date().toISOString() });
   await R.pull(true); RF.ui.toastAchievements = realToast;
   must9(toasts.some((x) => /deu um Flow/.test(x)) && toasts.some((x) => /Crítica Elaboradíssima/.test(x)), 'avisos de Flow e crítica recebidos: ' + toasts);
-  const myStat = R.activityStats(meId, sessN.id); must9(myStat.flows === 1 && myStat.comments.length === 1 && myStat.comments[0].body === 'Crítica da Maria', 'os meus Flows e críticas');
-  await R.deleteComment(meId, sessN.id, 'cm-in'); must9(!M.db.comments.some((c) => c.id === 'cm-in'), 'o dono pode apagar críticas à sua atividade');
-  M.db.profiles.get(mariaId).privacy.activity = false; let denied = null; try { await R.toggleFlow(mariaId, 'act-2'); } catch (e) { denied = e; } must9(denied && R.activityStats(mariaId, 'act-2').flows === 0, 'sem permissão (atividade escondida) não se dá Flow e nada fica marcado'); M.db.profiles.get(mariaId).privacy.activity = true;
-  M.flags.noInter = true; await R.pull(true); RF.app.go('home'); await sleep(30); must9(!R.interactionsAvailable() && !flowBtn() && walk(roots[0]).some((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Ver livro'), 'sem as tabelas novas: esconde Flow e Críticas, o resto funciona');
-  M.flags.noInter = false; R.api.resetInter(); await R.pull(true); must9(R.interactionsAvailable(), 'volta a aparecer com o SQL corrido');
+  const myStat = R.activityStats(meId, 'w' + sessN.start); must9(myStat.flows === 1 && myStat.comments.length === 1 && myStat.comments[0].body === 'Crítica da Maria', 'os meus Flows e críticas');
+  await R.deleteComment(meId, 'w' + sessN.start, 'cm-in'); must9(!M.db.comments.some((c) => c.id === 'cm-in'), 'o dono pode apagar críticas à sua atividade');
+  M.db.profiles.get(mariaId).privacy.activity = false; let denied = null; try { await R.toggleFlow(mariaId, 'w' + W2); } catch (e) { denied = e; } must9(denied && R.activityStats(mariaId, 'w' + W2).flows === 0, 'sem permissão (atividade escondida) não se dá Flow e nada fica marcado'); M.db.profiles.get(mariaId).privacy.activity = true;
+  M.flags.noInter = true; await R.pull(true); RF.app.go('home'); await sleep(30); must9(R.interactionsState() === 'missing' && flowBtn() && critBtn() && walk(roots[0]).some((n) => n.tagName === 'BUTTON' && text(n).trim() === 'Ver livro'), 'sem as tabelas novas os botões continuam visíveis (e avisam ao usar)');
+  M.flags.noInter = false; R.api.resetInter(); await R.pull(true); must9(R.interactionsState() === 'ok', 'volta ao normal com o SQL corrido');
   ok('Flows e Críticas Elaboradíssimas: dar/tirar, comentar/apagar, avisos de quem reage à minha atividade, moderação do dono, permissões e servidor sem o SQL');
+
+
+  // ===== Versão 1.11 =====
+  roots[1].children = []; R.api.resetInter(); await R.pull(true);
+  const flowB = () => walk(roots[0]).find((n) => n.tagName === 'BUTTON' && cls1(n, 'flow-btn')), critB = () => walk(roots[0]).find((n) => n.tagName === 'BUTTON' && /^Críticas Elaboradíssimas/.test(text(n).trim()));
+  const textContent = (re) => walk(roots[0]).find((n) => re.test(String(n.textContent || '')));
+  // (1) sem o SQL no servidor: os botões estão lá, avisam com clareza e recuperam sem reiniciar
+  M.flags.noInter = true; await R.recheckInteractions(true); if (R.interactionsState() !== 'missing') throw new Error('devia detetar o SQL em falta');
+  RF.app.go('home'); await sleep(40); if (!flowB() || !critB()) throw new Error('Flow e Críticas têm de aparecer sempre, mesmo sem o SQL no servidor');
+  const toasts11 = [], realT = RF.ui.toastAchievements; RF.ui.toastAchievements = (a) => toasts11.push(...a.map((x) => x.name));
+  flowB().listeners.click[0]({ stopPropagation() {} }); await sleep(120); RF.ui.toastAchievements = realT;
+  if (!toasts11.some((x) => /ainda não estão ativados no servidor/.test(x))) throw new Error('aviso claro ao usar sem o SQL: ' + toasts11);
+  critB().listeners.click[0](); await sleep(60); if (!/ainda não estão ativados no servidor/.test(text(roots[0]))) throw new Error('o painel das críticas explica o que falta');
+  M.flags.noInter = false; await sleep(20); critB().listeners.click[0](); await sleep(60);   // fechar e reabrir: volta a verificar o servidor
+  critB().listeners.click[0](); await sleep(80); RF.app.refresh();   // (na app o ecrã redesenha-se sozinho quando o servidor responde)
+  if (R.interactionsState() !== 'ok' || /ainda não estão ativados no servidor/.test(text(roots[0]))) throw new Error('com o SQL corrido volta a funcionar sem reiniciar: ' + R.interactionsState());
+  flowB().listeners.click[0]({ stopPropagation() {} }); await sleep(120); if (!M.db.flows.some((f) => f.user_id === meId && f.owner_id === mariaId)) throw new Error('dar um Flow depois de o servidor ficar pronto');
+  flowB().listeners.click[0]({ stopPropagation() {} }); await sleep(120); critB().listeners.click[0](); await sleep(40);
+  ok('Flows e Críticas: sempre visíveis; sem o SQL avisam com clareza e recuperam sozinhos (sem reiniciar); atividades de versões antigas também funcionam');
+  // (2) falha passageira não desliga nada
+  M.flags.interError = true; await R.pull(true); if (R.interactionsState() !== 'error') throw new Error('falha passageira = erro, não «em falta»');
+  RF.app.go('home'); await sleep(30); if (!flowB()) throw new Error('os botões continuam durante uma falha passageira');
+  await R.pull(true); if (R.interactionsState() !== 'ok') throw new Error('recupera na leitura seguinte');
+  // (3) diagnóstico do servidor
+  M.flags.noInter = true; let dg = await R.diagnoseServer(); if (!dg.missing.includes('Flows e Críticas Elaboradíssimas') || dg.ok) throw new Error('diagnóstico: ' + JSON.stringify(dg));
+  RF.app.go('friends'); await sleep(30); clickBtn(roots[0], 'Testar o servidor'); await sleep(250);
+  if (!textContent(/Falta ativar no servidor: .*Flows e Críticas Elaboradíssimas.*supabase-update-1\.11\.0\.sql/)) throw new Error('«Testar o servidor» devia dizer o que falta e que ficheiro correr');
+  M.flags.noInter = false; clickBtn(roots[0], 'Testar o servidor'); await sleep(250); if (!textContent(/Tudo ativo no servidor\./)) throw new Error('«Testar o servidor» devia confirmar quando está tudo ativo');
+  dg = await R.diagnoseServer(); if (!dg.ok) throw new Error('tudo ativo: ' + JSON.stringify(dg));
+  ok('«Testar o servidor» (Amigos) diz o que falta ativar e qual o ficheiro SQL a correr; falhas passageiras não desligam as funções');
+  // (4) ligação ao GitHub no Início (canto superior direito)
+  RF.app.go('home'); const ghw = walk(roots[0]).find((n) => cls1(n, 'gh-link'));
+  if (!ghw || !/GitHub ReadFlow/.test(text(ghw)) || ghw.children.length < 2) throw new Error('botão «GitHub ReadFlow» com o símbolo no Início');
+  const order11 = walk(roots[0]).map((n) => String(n.className || '')); if (order11.findIndex((c) => c.includes('gh-row')) < 0 || order11.findIndex((c) => c.includes('gh-row')) > order11.findIndex((c) => c.includes('page-head'))) throw new Error('a ligação fica no topo, antes do cabeçalho');
+  let opened = null; const wnd = typeof window !== 'undefined' ? window : globalThis, realOpen = wnd.open; wnd.open = (u, tg, f) => { opened = [u, tg, f]; };
+  ghw.listeners.click[0](); wnd.open = realOpen;
+  if (!opened || opened[0] !== 'https://github.com/quimmostarda74/ReadFlow' || opened[1] !== '_blank') throw new Error('clicar devia abrir o repositório: ' + JSON.stringify(opened));
+  for (const r of ['library', 'stats', 'profile']) { RF.app.go(r); if (walk(roots[0]).some((n) => cls1(n, 'gh-link'))) throw new Error('a ligação só aparece na página inicial'); }
+  ok('Início: botão «GitHub ReadFlow» no canto superior direito que abre https://github.com/quimmostarda74/ReadFlow');
 
   // Perfil visto por um seguidor: 5 miniaturas + "Ver mais", estatísticas e atividade
   for (let i = 0; i < 8; i++) await S.saveBook(S.newBook({ title: 'Fav ' + i, author: 'A', status: 'finished', favorite: true, totalPages: 100 }));

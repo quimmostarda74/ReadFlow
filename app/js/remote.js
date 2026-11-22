@@ -18,7 +18,7 @@
   let known = null, lastHash = '', pushTimer = null, timers = [], hooks = { change() {}, notify() {} };
   let serverCovers = null, coversOff = false, wantOff = false;           // capas já enviadas / tabela de capas indisponível
   // Flows (gostos) e Críticas Elaboradíssimas (comentários) nas atividades: flows[dono][atividade] = [...], comments[dono][atividade] = [...]
-  const inter = { flows: {}, comments: {}, off: false, known: null };
+  const inter = { flows: {}, comments: {}, status: 'unknown', known: null, skip: 0 };   // status: unknown | ok | missing (SQL por correr) | error (falha passageira)
   const thumbCache = new Map();                          // id da capa -> miniatura (data URL)
   const coversByUid = {};                                // uid -> { ck: data URL | null }
 
@@ -62,7 +62,7 @@
   }
   async function localSignOut() {
     if (root.RF.sync) root.RF.sync.onSignOut();
-    session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = ''; serverCovers = null; coversOff = false; wantOff = false; inter.flows = {}; inter.comments = {}; inter.known = null;
+    session = null; state.user = null; cache.following = []; cache.followers = []; cache.shared = {}; cache.byHandle = {}; known = null; lastHash = ''; serverCovers = null; coversOff = false; wantOff = false; inter.flows = {}; inter.comments = {}; inter.known = null; inter.status = 'unknown';
     await S.deleteKV('auth');
   }
   const loadProfile = async () => {
@@ -199,7 +199,7 @@
       } catch (e) { resolve(null); }
     });
   }
-  const api = { thumbProvider: defaultThumb, resetCovers() { coversOff = false; serverCovers = null; }, resetWant() { wantOff = false; }, resetInter() { inter.off = false; inter.known = null; } };   // resetCovers: usado nos testes
+  const api = { thumbProvider: defaultThumb, resetCovers() { coversOff = false; serverCovers = null; }, resetWant() { wantOff = false; }, resetInter() { inter.status = 'unknown'; inter.known = null; } };   // resetCovers: usado nos testes
   /** Capas dos livros que vão ser partilhados (só das listas ligadas em Privacidade). */
   async function coverThumbs() {
     const p = S.state.settings.privacy, out = new Map();
@@ -343,21 +343,40 @@
   }
 
   /* ---------- Flows e Críticas Elaboradíssimas ---------- */
-  async function pullInteractions() {
-    if (inter.off || !session) return;
+  const isMissingTable = (e) => e && (e.status === 404 || /^(PGRST2\d\d|42P01)$/.test(String(e.code)));
+  async function pullInteractions(force) {
+    if (!session) return;
+    if (inter.status === 'missing' && !force && (inter.skip = (inter.skip + 1) % 10) !== 0) return;      // tabelas em falta: volta a tentar de vez em quando
     const owners = [session.uid, ...cache.following.filter((f) => f.status === 'accepted').map((f) => f.uid)], list = owners.join(',');
     let fl, cm;
     try {
       fl = (await rest('GET', 'activity_flows', `select=owner_id,activity_key,user_id,author_name,created_at&owner_id=in.(${list})&order=created_at.asc&limit=3000`)) || [];
       cm = (await rest('GET', 'activity_comments', `select=id,owner_id,activity_key,user_id,author_name,body,created_at&owner_id=in.(${list})&order=created_at.asc&limit=2000`)) || [];
-    } catch (e) { if (e.code === 'network') throw e; inter.off = true; return; }      // as tabelas ainda não existem (falta o SQL 1.9)
+    } catch (e) {
+      if (e.code === 'network') throw e;
+      inter.status = isMissingTable(e) ? 'missing' : 'error';          // 'missing' = falta o SQL no servidor; 'error' = falha passageira (volta a tentar)
+      return;
+    }
+    inter.status = 'ok';
     const flows = {}, comments = {}, seen = new Set(), fresh = [];
     for (const r of fl) { ((flows[r.owner_id] = flows[r.owner_id] || {})[r.activity_key] = (flows[r.owner_id] || {})[r.activity_key] || []).push({ u: r.user_id, name: r.author_name || '', at: Date.parse(r.created_at) || 0 }); const k = 'f|' + r.owner_id + '|' + r.activity_key + '|' + r.user_id; seen.add(k); if (inter.known && !inter.known.has(k) && r.owner_id === session.uid && r.user_id !== session.uid) fresh.push({ kind: 'flow', name: r.author_name }); }
     for (const r of cm) { ((comments[r.owner_id] = comments[r.owner_id] || {})[r.activity_key] = (comments[r.owner_id] || {})[r.activity_key] || []).push({ id: r.id, u: r.user_id, name: r.author_name || '', body: r.body, at: Date.parse(r.created_at) || 0 }); const k = 'c|' + r.id; seen.add(k); if (inter.known && !inter.known.has(k) && r.owner_id === session.uid && r.user_id !== session.uid) fresh.push({ kind: 'comment', name: r.author_name }); }
     inter.flows = flows; inter.comments = comments; inter.known = seen;
     for (const f of fresh.slice(0, 3)) hooks.notify(f.kind, { name: f.name || '' });
   }
-  const interactionsAvailable = () => !inter.off && !!session;
+  const interactionsState = () => inter.status;
+  const interactionsAvailable = () => inter.status !== 'missing' && !!session;
+  async function recheckInteractions(silent) { try { await pullInteractions(true); } catch (e) { /* sem rede */ } if (!silent) hooks.change(); return inter.status; }
+  /** Que funcionalidades já estão ativas no servidor (o que falta é SQL por correr). */
+  async function diagnoseServer() {
+    if (!session) return { missing: [], ok: true };
+    const probe = async (table, col) => { try { await rest('GET', table, `select=${col}&limit=1`); return true; } catch (e) { return !isMissingTable(e); } };
+    const missing = [];
+    if (!(await probe('activity_flows', 'activity_key')) || !(await probe('activity_comments', 'id'))) missing.push('Flows e Críticas Elaboradíssimas');
+    if (!(await probe('covers', 'ck'))) missing.push('Capas e textos longos');
+    if (wantOff) missing.push('«Quero ler» nos perfis');
+    return { missing, ok: !missing.length };
+  }
   const activityStats = (ownerUid, aid) => {
     const fl = ((inter.flows[ownerUid] || {})[aid]) || [], cm = ((inter.comments[ownerUid] || {})[aid]) || [];
     return { flows: fl.length, flowed: !!session && fl.some((x) => x.u === session.uid), who: fl.map((x) => x.name).filter(Boolean), comments: cm };
@@ -451,7 +470,7 @@
       network: 'Não foi possível ligar. Verifica a internet.', invalid_credentials: 'ID ou palavra-passe incorretos.', bad_id: 'ID inválido. Usa o formato nome#123456.',
       bad_name: 'O nome deve ter entre 3 e 16 letras ou números.', weak_password: 'A palavra-passe deve ter pelo menos 8 caracteres.', handle_taken: 'Esse nome já está a ser usado. Tenta outro.',
       confirm_email: 'A confirmação por e-mail está ligada no Supabase. Desliga «Confirm email» (ver o guia).', not_found: 'Não encontrámos ninguém com esse ID.',
-      self: 'Esse é o teu próprio ID.', invite_invalid: 'Código de convite inválido ou em falta. Pede-o a quem te convidou.', rate_limited: 'Enviaste muitos pedidos. Tenta daqui a uma hora.', email_not_confirmed: 'A confirmação por e-mail está ligada no Supabase. Desliga «Confirm email» (ver o guia).'
+      self: 'Esse é o teu próprio ID.', PGRST205: 'Os Flows e as Críticas ainda não estão ativados no servidor: quem administra a app tem de correr o SQL da versão 1.11 (ver o guia).', 42501: 'Não tens permissão para reagir a esta atividade.', rate_limit: 'Estás a ir depressa demais. Tenta daqui a pouco.', invite_invalid: 'Código de convite inválido ou em falta. Pede-o a quem te convidou.', rate_limited: 'Enviaste muitos pedidos. Tenta daqui a uma hora.', email_not_confirmed: 'A confirmação por e-mail está ligada no Supabase. Desliga «Confirm email» (ver o guia).'
     };
     if (map[c]) return t(map[c]);
     if (e && e.status === 400 && /invalid login/i.test(e.message || '')) return t(map.invalid_credentials);
@@ -462,7 +481,7 @@
   RF.remote = {
     configured, signedIn: () => !!(session && state.user), state, cache, RemoteError, explain,
     signUp, signIn, signOut, deleteAccount, diagnose, restore, pull, pushNow, schedulePush, follow, unfollow, removeFollower, respond,
-    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, freshToken, interactionsAvailable, activityStats, toggleFlow, addComment, deleteComment, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
+    relation, sectionsOf, feed, recommendations, rankingPeople, loadCovers, loadKeys, person: byHandle, api, freshToken, interactionsAvailable, interactionsState, recheckInteractions, diagnoseServer, activityStats, toggleFlow, addComment, deleteComment, verifyPassword, vaultGet, vaultPut, vaultDelete, startPolling, stopPolling,
     setHooks: (h) => { hooks = { ...hooks, ...h }; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

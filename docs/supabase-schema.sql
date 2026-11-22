@@ -326,3 +326,5 @@ drop trigger if exists comments_limit_trg on public.activity_comments;
 create trigger comments_limit_trg before insert on public.activity_comments for each row execute function public.interactions_limit();
 drop trigger if exists flows_limit_trg on public.activity_flows;
 create trigger flows_limit_trg before insert on public.activity_flows for each row execute function public.interactions_limit();
+
+notify pgrst, 'reload schema';

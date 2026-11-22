@@ -4693,6 +4693,66 @@
 "Your ReadFlow session has expired. Sign in to your account again.",
 "Сессия ReadFlow истекла. Войди в аккаунт снова.",
 "Deine ReadFlow-Sitzung ist abgelaufen. Melde dich erneut in deinem Konto an."
+],
+[
+"Capas e textos longos",
+"Covers and long texts",
+"Обложки и длинные тексты",
+"Cover und lange Texte"
+],
+[
+"Estás a ir depressa demais. Tenta daqui a pouco.",
+"You are going too fast. Try again in a moment.",
+"Ты действуешь слишком быстро. Попробуй чуть позже.",
+"Du bist zu schnell. Versuche es gleich noch einmal."
+],
+[
+"Falta ativar no servidor: {list}. Corre o ficheiro docs\\supabase-update-1.11.0.sql no Supabase (SQL Editor).",
+"Needs enabling on the server: {list}. Run the file docs\\supabase-update-1.11.0.sql in Supabase (SQL Editor).",
+"Нужно включить на сервере: {list}. Запусти файл docs\\supabase-update-1.11.0.sql в Supabase (SQL Editor).",
+"Auf dem Server noch zu aktivieren: {list}. Führe die Datei docs\\supabase-update-1.11.0.sql in Supabase aus (SQL Editor)."
+],
+[
+"Flows e Críticas Elaboradíssimas",
+"Flows and Super-Elaborate Critiques",
+"Flow и сверхподробные рецензии",
+"Flows und hochelaborierte Kritiken"
+],
+[
+"Funcionalidades do servidor",
+"Server features",
+"Функции сервера",
+"Server-Funktionen"
+],
+[
+"Não tens permissão para reagir a esta atividade.",
+"You do not have permission to react to this activity.",
+"У тебя нет разрешения реагировать на эту активность.",
+"Du darfst auf diese Aktivität nicht reagieren."
+],
+[
+"Os Flows e as Críticas ainda não estão ativados no servidor: quem administra a app tem de correr o SQL da versão 1.11 (ver o guia).",
+"Flows and Critiques are not enabled on the server yet: whoever runs the app has to run the version 1.11 SQL (see the guide).",
+"Flow и рецензии ещё не включены на сервере: тому, кто администрирует приложение, нужно запустить SQL версии 1.11 (см. руководство).",
+"Flows und Kritiken sind auf dem Server noch nicht aktiviert: Wer die App betreibt, muss das SQL der Version 1.11 ausführen (siehe Anleitung)."
+],
+[
+"Testar o servidor",
+"Test the server",
+"Проверить сервер",
+"Server testen"
+],
+[
+"Tudo ativo no servidor.",
+"Everything is active on the server.",
+"Всё включено на сервере.",
+"Auf dem Server ist alles aktiv."
+],
+[
+"«Quero ler» nos perfis",
+"«Want to read» on profiles",
+"«Хочу прочитать» в профилях",
+"«Möchte ich lesen» in den Profilen"
 ]
 ]);
 })(typeof window !== 'undefined' ? window : globalThis);

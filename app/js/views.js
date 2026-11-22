@@ -61,7 +61,7 @@
       h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(s.durationSeconds)), metric(t('Páginas'), String(L.pagesRead(s))), metric(t('Ritmo'), L.pace(L.pagesPerHour(s)))),
       photo ? h('img', { class: 'session-photo', src: photo, alt: '' }) : null,
       s.notes ? h('p', { class: 'muted' }, s.notes) : null,
-      RF.remote.signedIn() && S.state.settings.privacy.activity && SOC.activityOf(S.state, 60).some((a) => a.aid === s.id) ? activityActions(RF.remote.state.user.uid, s.id, null) : null);
+      RF.remote.signedIn() && S.state.settings.privacy.activity && SOC.activityOf(S.state, 60).some((a) => a.when === s.start) ? activityActions(RF.remote.state.user.uid, s.start, null) : null);
   }
 
   /* ---------- Flows (gostos) e Críticas Elaboradíssimas (comentários) ---------- */
@@ -78,6 +78,7 @@
     const box = h('textarea', { rows: 2, maxlength: '600', placeholder: t('Escreve a tua Crítica Elaboradíssima…') });
     const post = h('button', { class: 'btn primary small-btn', onClick: async () => { const v = box.value.trim(); if (!v) return; post.disabled = true; try { await R.addComment(ownerUid, aid, v); box.value = ''; } catch (e) { oops(e); } RF.app.refresh(); } }, t('Publicar'));
     return h('div', { class: 'thread stack tight' },
+      R.interactionsState() === 'missing' ? h('div', { class: 'warn-note' }, t('Os Flows e as Críticas ainda não estão ativados no servidor: quem administra a app tem de correr o SQL da versão 1.11 (ver o guia).')) : null,
       st.comments.length ? h('div', { class: 'stack tight' }, ...st.comments.map((c) => h('div', { class: 'comment' },
         h('div', { class: 'row between center' }, h('strong', { class: 'small' }, c.name || t('Alguém')), h('span', { class: 'row gap center' }, h('span', { class: 'muted tiny' }, agoFromMs(c.at)),
           c.u === me || ownerUid === me ? h('button', { class: 'icon-btn', title: t('Apagar'), onClick: async () => { try { await R.deleteComment(ownerUid, aid, c.id); } catch (e) { oops(e); } RF.app.refresh(); } }, icon('trash', 14)) : null)),
@@ -85,14 +86,15 @@
       box, h('div', { class: 'row end' }, post));
   }
   /** Linha com «Flow», «Críticas Elaboradíssimas» e «Ver livro» de uma atividade. ctx: { handle, book } para abrir o livro. */
-  function activityActions(ownerUid, aid, ctx) {
-    const R = RF.remote, can = !!aid && R.signedIn() && R.interactionsAvailable(), btns = [];
+  const actKey = (when) => 'w' + when;                  // chave de uma atividade: a hora de início da leitura
+  function activityActions(ownerUid, when, ctx) {
+    const R = RF.remote, aid = when ? actKey(when) : null, can = !!aid && R.signedIn(), btns = [];
     let thread = null;
     if (can) {
       const st = R.activityStats(ownerUid, aid), key = ownerUid + '|' + aid, open = openThreads.has(key);
       btns.push(h('button', { class: 'btn small-btn flow-btn' + (st.flowed ? ' on' : ''), title: st.who.length ? st.who.join(', ') : t('Dar um Flow'), onClick: async (e) => { e.stopPropagation(); try { await R.toggleFlow(ownerUid, aid); } catch (x) { oops(x); } RF.app.refresh(); } },
         icon('flame', 14, { fill: st.flowed }), t('Flow') + (st.flows ? ' · ' + st.flows : '')));
-      btns.push(h('button', { class: 'btn small-btn' + (open ? ' on' : ''), onClick: () => { if (open) openThreads.delete(key); else openThreads.add(key); RF.app.refresh(); } },
+      btns.push(h('button', { class: 'btn small-btn' + (open ? ' on' : ''), onClick: () => { if (open) openThreads.delete(key); else { openThreads.add(key); R.recheckInteractions(); } RF.app.refresh(); } },
         icon('edit', 14), t('Críticas Elaboradíssimas') + (st.comments.length ? ' · ' + st.comments.length : '')));
       if (open) thread = commentThread(ownerUid, aid, st);
     }
@@ -117,7 +119,7 @@
       unlockChips(p.unlocked),
       h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(p.minutes * 60)), metric(t('Páginas'), String(p.pages)), metric(t('Ritmo'), L.pace(p.minutes > 0 ? p.pages / (p.minutes / 60) : 0))),
       ...actExtras(p),
-      activityActions(u.uid, p.aid, { handle: u.id, book: p.book }));
+      activityActions(u.uid, p.when, { handle: u.id, book: p.book }));
   }
   const friendPosts = () => (RF.remote.signedIn() ? RF.remote.feed() : []);
 
@@ -147,6 +149,7 @@
         h('span', { class: 'dot' + (read ? ' on' : '') + (L.isSameDay(day, now) && !read ? ' today' : '') }, read ? icon('check', 14) : null)));
     }
     return h('div', { class: 'page' },
+      ghLink(),
       h('header', { class: 'page-head' }, h('div', { class: 'row gap center' }, UI.avatar(58),
         h('div', null, h('h1', { class: 'serif' }, st.settings.name ? `${base}, ${st.settings.name}` : base), h('p', { class: 'muted' }, t('O que vais ler hoje?'))))),
       h('div', { class: 'home-grid' },
@@ -510,6 +513,7 @@
         h('div', { class: 'card stack' }, h('h3', null, t('Seguir alguém')), h('div', { class: 'row gap' }, input, h('button', { class: 'btn primary', onClick: add }, icon('send', 16), t('Pedir'))), msg, h('p', { class: 'muted small' }, t('A pessoa tem de aceitar o pedido antes de veres o perfil dela.')))),
       incoming.length ? h('div', { class: 'card stack' }, h('h3', null, t('Pedidos para te seguirem')), ...incoming.map((u) => personRow(u, [h('button', { class: 'btn primary small-btn', onClick: () => act(() => R.respond(u.id, true)) }, t('Aceitar')), h('button', { class: 'btn small-btn', onClick: () => act(() => R.respond(u.id, false)) }, t('Recusar'))]))) : null,
       seg([['feed', t('Atividade')], ['followers', t('Seguidores')], ['following', t('A seguir')], ['privacy', t('Privacidade')]], friendsTab, (k) => { friendsTab = k; }), tabBody,
+      serverCard(),
       h('div', { class: 'card flat stack tight' }, h('div', { class: 'strong' }, t('Conta online')),
         h('div', { class: 'row gap wrap' }, h('button', { class: 'btn', onClick: () => act(() => R.signOut()) }, t('Terminar sessão')),
           h('button', { class: 'btn danger-text', onClick: async () => { if (await UI.confirmDialog({ title: t('Apagar a conta online?'), message: t('O teu perfil, pedidos e dados partilhados são apagados do servidor. Os teus livros neste computador não são afetados.'), confirmLabel: t('Apagar conta'), danger: true })) act(() => R.deleteAccount()); } }, icon('trash', 16), t('Apagar conta online')))));
@@ -527,7 +531,7 @@
     (withNote && it.note) ? h('span', { class: 'muted tiny clip2' }, '“' + it.note + '”') : (it.review ? h('span', { class: 'muted tiny clip2' }, it.review) : null));
   const activityLine = (a, owner) => h('div', { class: 'card flat stack tight session-card' }, h('div', { class: 'row between center' }, h('span', { class: 'strong serif clip' }, a.book || t('Livro removido')), h('span', { class: 'muted small' }, agoFromMs(a.when))),
     unlockChips(a.unlocked), h('div', { class: 'metrics' }, metric(t('Tempo'), L.duration(a.minutes * 60)), metric(t('Páginas'), String(a.pages)), metric(t('Ritmo'), L.pace(a.minutes > 0 ? a.pages / (a.minutes / 60) : 0))), ...actExtras(a),
-    owner ? activityActions(owner.uid, a.aid, { handle: owner.handle, book: a.book }) : null);
+    owner ? activityActions(owner.uid, a.when, { handle: owner.handle, book: a.book }) : null);
 
   function publicView(p, ctx) {
     const sec = p.sections;
@@ -704,6 +708,22 @@
         h('div', { class: 'row end gap' }, h('button', { class: 'btn', onClick: () => go(false) }, t('Agora não')), h('button', { class: 'btn primary', onClick: () => go(true) }, t('Continuar'))));
     });
   }
+
+  /** Mostra o que já está ativo no servidor e o que falta (SQL por correr). */
+  function serverCard() {
+    const R = RF.remote, out = h('p', { class: 'muted small' });
+    return h('div', { class: 'card flat stack tight' }, h('div', { class: 'row between center wrap' }, h('div', { class: 'strong' }, t('Funcionalidades do servidor')),
+      h('button', { class: 'btn small-btn', onClick: async () => {
+        out.textContent = t('A testar…'); out.className = 'muted small';
+        const d = await R.diagnoseServer(); await R.recheckInteractions(true);
+        out.textContent = d.ok ? t('Tudo ativo no servidor.') : t('Falta ativar no servidor: {list}. Corre o ficheiro docs\\supabase-update-1.11.0.sql no Supabase (SQL Editor).', { list: d.missing.map((x) => t(x)).join(', ') });
+        out.className = d.ok ? 'small accent strong' : 'small err-note';
+      } }, icon('activity', 14), t('Testar o servidor'))), out);
+  }
+
+  /* ---------- Ligação ao GitHub do projeto (canto superior direito do Início) ---------- */
+  const GITHUB_URL = 'https://github.com/quimmostarda74/ReadFlow';
+  const ghLink = () => h('div', { class: 'gh-row' }, h('button', { class: 'gh-link', title: 'github.com/quimmostarda74/ReadFlow', onClick: () => { if (root.open) root.open(GITHUB_URL, '_blank', 'noopener'); } }, icon('github', 18), h('span', null, 'GitHub ReadFlow')));
 
   function profile() {
     const st = S.state, s = st.settings, tt = L.totals(st.sessions);
